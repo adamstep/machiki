@@ -34,8 +34,10 @@ Every fact (`8+5`, `13-5`, …) sits in a Leitner box from 0 to 6, saved in the 
 - **A quick, first-try answer** moves the fact up a box. Each box waits longer before asking again:
   now, 10 minutes, 1 day, 3 days, 1 week, 16 days, 35 days.
 - **A correct but slow answer** keeps the fact where it is.
-- Each level is up to 60% due reviews (weakest first). The rest are new facts, introduced
-  easiest-first (small sums, then up to 10, then teens, then crossing ten like 7+6 and 13−5).
+- Each level is up to 60% due reviews (weakest first). The rest are new facts, split evenly
+  between three kinds of problem: within 10 (6+3, 9−4), teens that don't cross ten (12+5, 17−4),
+  and ones that cross ten (8+7, 13−5). With "up to 20", about three in four problems use a
+  number above 10. Facts like 5+0 or 7−7 come up only rarely.
 
 The logic is in [js/srs.js](js/srs.js).
 

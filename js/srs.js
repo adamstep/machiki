@@ -3,7 +3,8 @@
 // Every fact (like "8+5") lives in a box from 0 to 6. A miss sends it back to box 0, so it shows
 // up again later in the same level and at the start of the next one. A quick correct answer moves
 // it up a box, and each box waits longer before asking again (minutes → days → weeks). Facts
-// she has never seen are mixed in, easiest first, so new material arrives gradually.
+// she has never seen are mixed in, spread evenly across the kinds of problem (small sums, teens,
+// crossing ten) so the whole number range shows up.
 const SRS = (() => {
   const MIN = 60e3, DAY = 864e5;
   const INTERVALS = [0, 10 * MIN, 1 * DAY, 3 * DAY, 7 * DAY, 16 * DAY, 35 * DAY];
@@ -27,18 +28,12 @@ const SRS = (() => {
 
   const isTrivial = f => f.b === 0 || (f.op === '+' && f.a === 0) || (f.op === '-' && f.a === f.b);
 
-  // Rough difficulty, used to introduce new facts in a sensible order.
-  function difficulty({ a, b, op }) {
-    if (op === '+') {
-      const sum = a + b;
-      let d = sum <= 5 ? 1 : sum <= 10 ? 2 : (a >= 10 || b >= 10) ? 3 : 4; // 4 = crossing ten, e.g. 7+6
-      if (a === b) d -= 0.5; // doubles are easier to remember
-      return d;
-    }
-    if (a <= 5) return 1;
-    if (a <= 10) return 2;
-    if (b === 10 || a - b >= 10) return 3; // 15-10, 17-4
-    return 4.5; // crossing ten, e.g. 13-5
+  // The kind of problem, used to keep new facts balanced across the number range:
+  // small (within 10), teens without crossing ten (12+5, 17-4), and crossing ten (8+7, 13-5).
+  function group({ a, b, op, answer }) {
+    if (op === '+') return answer <= 10 ? '+small' : (a >= 10 || b >= 10) ? '+teen' : '+cross';
+    if (a <= 10) return '-small';
+    return (answer >= 10 || b >= 10) ? '-teen' : '-cross';
   }
 
   function record(srs, key, { missed, fast }, now = Date.now()) {
@@ -81,9 +76,12 @@ const SRS = (() => {
 
     // Up to 60% reviews, then new facts, then any extra reviews, then older facts to fill.
     const picked = due.splice(0, Math.ceil(size * 0.6));
-    const minD = Math.min(...fresh.map(difficulty));
-    const freshWeight = f => Math.exp(-2.5 * (difficulty(f) - minD)) * (isTrivial(f) ? 0.25 : 1);
-    while (picked.length < size && fresh.length) picked.push(takeWeighted(fresh, freshWeight, rng));
+    // Each group gets an equal share no matter how many facts it holds; ±0 and x−x are rare.
+    while (picked.length < size && fresh.length) {
+      const counts = {};
+      for (const f of fresh) counts[group(f)] = (counts[group(f)] || 0) + 1;
+      picked.push(takeWeighted(fresh, f => (isTrivial(f) ? 0.15 : 1) / counts[group(f)], rng));
+    }
     while (picked.length < size && due.length) picked.push(due.shift());
     const restWeight = f => (MAX_BOX + 1 - rec(f).box) ** 2 * (1 + (now - rec(f).last) / DAY);
     while (picked.length < size && rest.length) picked.push(takeWeighted(rest, restWeight, rng));
@@ -117,7 +115,7 @@ const SRS = (() => {
     return { total: pool.length, practiced, mastered, tricky: tricky.slice(0, 16) };
   }
 
-  return { allFacts, difficulty, record, buildLevel, stats, INTERVALS };
+  return { allFacts, group, record, buildLevel, stats, INTERVALS };
 })();
 
 if (typeof module !== 'undefined') module.exports = SRS;
