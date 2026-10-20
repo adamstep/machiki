@@ -49,7 +49,7 @@ const Sound = (() => {
     return osc;
   }
 
-  function noise({ at = 0, dur = 0.2, vol = 0.3, freq = 600 }) {
+  function noise({ at = 0, dur = 0.2, vol = 0.3, freq = 600, filter: filterType = 'lowpass' }) {
     if (!noiseBuf) {
       noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
       const d = noiseBuf.getChannelData(0);
@@ -58,7 +58,7 @@ const Sound = (() => {
     const t0 = ac.currentTime + at;
     const src = ac.createBufferSource(), filter = ac.createBiquadFilter(), gain = ac.createGain();
     src.buffer = noiseBuf;
-    filter.type = 'lowpass';
+    filter.type = filterType;
     filter.frequency.value = freq;
     gain.gain.setValueAtTime(vol, t0);
     gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
@@ -81,6 +81,13 @@ const Sound = (() => {
       tone({ f: midi(59), to: midi(55), at: 0.17, dur: 0.3, type: 'triangle', vol: 0.22 });
     },
     jump() { tone({ f: 300, to: 760, dur: 0.22, vol: 0.18 }); },
+    // Machiki grabs the berries: two juicy "bloops", a sparkly shimmer, and a leafy rustle from a bush.
+    collect(rustle = false) {
+      tone({ f: 480, to: 980, dur: 0.09, vol: 0.24 });
+      tone({ f: 640, to: 1320, at: 0.08, dur: 0.1, vol: 0.22 });
+      notes([[0.15, 100, 0.2], [0.185, 96, 0.2], [0.22, 103, 0.2], [0.255, 98, 0.3]], { vol: 0.07 });
+      if (rustle) noise({ dur: 0.22, vol: 0.14, freq: 2500, filter: 'highpass' });
+    },
     pop(i = 0) {
       const n = [79, 81, 84, 86, 88, 91, 93, 96][i % 8];
       tone({ f: midi(n), to: midi(n + 5), dur: 0.09, vol: 0.14 });

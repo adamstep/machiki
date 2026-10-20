@@ -281,6 +281,7 @@
   function collect(it) {
     it.picked = true;
     g.levelBerries += it.reward;
+    Sound.sfx.collect(it.kind === 'bush');
     const sy = it.kind === 'bush' ? GROUND_Y - 60 : GROUND_Y - 205;
     const n = Math.min(it.reward, 12);
     for (let i = 0; i < n; i++) {
