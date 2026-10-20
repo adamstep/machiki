@@ -18,15 +18,20 @@ html, body {
   margin: 0;
   height: 100%;
   overflow: hidden;
-  background: #2f6e3b;
+  overscroll-behavior: none;
+  background: #5ea93f;
   font-family: var(--font);
   color: var(--ink);
   user-select: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
-/* The game is laid out on a fixed 1280×720 stage that is scaled to fit the window. */
+/* The stage is laid out in logical pixels and scaled to the screen; its size and layout
+   (data-layout = wide | strip | portrait) are set by fit() in game.js. The 720-tall scene sits at
+   the top; on taller screens the meadow continues below it, holding the problem and number pad. */
 #stage {
   position: absolute;
   left: 50%;
@@ -35,12 +40,17 @@ html, body {
   height: 720px;
   transform-origin: center center;
   overflow: hidden;
-  border-radius: 18px;
+  background: linear-gradient(#79c94d 720px, #66b443);
+  --safe-top: 0px;
+  --safe-right: 0px;
+  --safe-bottom: 0px;
+  --safe-left: 0px;
 }
 
 #game {
   position: absolute;
-  inset: 0;
+  left: 0;
+  top: 0;
   width: 1280px;
   height: 720px;
   display: block;
@@ -48,12 +58,12 @@ html, body {
 
 .hidden { display: none !important; }
 
-button { font-family: inherit; cursor: pointer; }
+button { font-family: inherit; cursor: pointer; touch-action: manipulation; }
 
 /* ---------- HUD ---------- */
 #hud {
   position: absolute;
-  inset: 18px 22px auto 22px;
+  inset: calc(18px + var(--safe-top)) calc(22px + var(--safe-right)) auto calc(22px + var(--safe-left));
   display: flex;
   justify-content: space-between;
   pointer-events: none;
@@ -96,7 +106,7 @@ button { font-family: inherit; cursor: pointer; }
   top: 16px;
   left: 50%;
   transform: translateX(-50%);
-  width: 500px;
+  width: clamp(420px, calc(100% - 520px), 500px);
   padding: 10px 24px 16px;
   background: var(--cream);
   border: 5px solid var(--ink);
@@ -195,7 +205,7 @@ button { font-family: inherit; cursor: pointer; }
 /* ---------- Number pad ---------- */
 #numpad {
   position: absolute;
-  bottom: 14px;
+  bottom: calc(14px + var(--safe-bottom));
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -218,7 +228,7 @@ button { font-family: inherit; cursor: pointer; }
 
 #countdown {
   position: absolute;
-  top: 46%;
+  top: 330px;
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: 170px;
@@ -244,6 +254,7 @@ button { font-family: inherit; cursor: pointer; }
 
 .panel {
   width: 560px;
+  max-width: calc(100% - 24px);
   padding: 26px 34px 30px;
   background: var(--cream);
   border: 6px solid var(--ink);
@@ -252,7 +263,7 @@ button { font-family: inherit; cursor: pointer; }
   box-shadow: 0 12px 0 rgba(74, 42, 23, .35);
   animation: rise .35s ease-out;
 }
-.panel.wide { width: 980px; max-height: 696px; overflow-y: auto; padding-top: 20px; padding-bottom: 22px; text-align: left; }
+.panel.wide { width: 980px; max-height: calc(100% - 24px); overflow-y: auto; padding-top: 20px; padding-bottom: 22px; text-align: left; }
 @keyframes rise { from { transform: translateY(30px) scale(.95); opacity: 0; } }
 
 .title-panel { margin-left: 260px; }
@@ -306,7 +317,7 @@ kbd {
   box-shadow: 0 6px 0 rgba(74, 42, 23, .4);
   transition: transform .08s;
 }
-.btn:hover { transform: translateY(-2px); }
+@media (hover: hover) { .btn:hover { transform: translateY(-2px); } }
 .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(74, 42, 23, .4); }
 .btn-big { font-size: 34px; padding: 14px 40px; }
 .btn-green { background: var(--green); }
@@ -349,7 +360,8 @@ kbd {
   display: flex;
   flex-direction: column;
   width: 1200px;
-  height: 680px;
+  height: calc(100% - 24px);
+  max-height: 900px;
   padding: 18px 26px 20px;
   text-align: left;
 }
@@ -358,9 +370,9 @@ kbd {
 .shop-sub { flex: 1; margin: 0; font-size: 20px; opacity: .75; }
 .shop-head .btn { font-size: 24px; padding: 8px 26px; }
 
-.shop-tabs { display: flex; gap: 8px; margin: 12px 0; }
+.shop-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .shop-tabs button {
-  flex: 1;
+  flex: 1 1 auto;
   padding: 10px 6px;
   background: #fff;
   border: 4px solid var(--ink);
@@ -376,7 +388,7 @@ kbd {
 .shop-grid {
   flex: 1;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
   grid-auto-rows: 236px;
   gap: 14px;
   padding: 4px 6px 8px 2px;
@@ -475,3 +487,59 @@ kbd {
 }
 .chip small { opacity: .65; }
 .muted { opacity: .6; font-size: 17px; }
+
+/* ---------- Layouts for different screens (see fit() in game.js) ---------- */
+
+/* Phones: everything is scaled down a lot, so make the things you tap bigger. */
+body.small[data-layout="wide"] #numpad { gap: 10px; bottom: calc(8px + var(--safe-bottom)); }
+body.small[data-layout="wide"] #numpad button { width: 86px; height: 86px; font-size: 42px; border-radius: 22px; }
+body.small[data-layout="wide"] #numpad .np-go { width: 140px; }
+body.small .shop-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); grid-auto-rows: 320px; }
+body.small .card .name { font-size: 26px; }
+body.small .card .buy { padding: 14px 0; font-size: 32px; }
+body.small .shop-tabs button { padding: 12px 10px; font-size: 26px; }
+body.small .shop-tabs button small { font-size: 18px; }
+body.small .seg button { padding: 10px 18px; font-size: 22px; }
+body.small .setting .name, body.small #progress { font-size: 22px; }
+
+/* Squarish screens: the number pad gets its own strip of meadow under the scene. */
+[data-layout="strip"] #numpad {
+  top: 734px;
+  bottom: calc(14px + var(--safe-bottom));
+  left: calc(24px + var(--safe-left));
+  right: calc(24px + var(--safe-right));
+  transform: none;
+  align-items: center;
+}
+[data-layout="strip"] #numpad button { flex: 1; width: auto; height: 100%; max-height: 120px; font-size: 44px; }
+[data-layout="strip"] #numpad .np-go { flex: 1.6; }
+
+/* Portrait: scene on top, then the problem, then a big 3×4 number pad filling the rest. */
+[data-layout="portrait"] #problem { top: 736px; width: calc(100% - 40px); max-width: 720px; }
+[data-layout="portrait"] #numpad {
+  top: 966px;
+  bottom: calc(22px + var(--safe-bottom));
+  left: calc(22px + var(--safe-left));
+  right: calc(22px + var(--safe-right));
+  transform: none;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+[data-layout="portrait"] #numpad button { width: auto; height: auto; font-size: 68px; border-radius: 28px; box-shadow: 0 7px 0 rgba(74, 42, 23, .4); }
+[data-layout="portrait"] #numpad .np-go { width: auto; font-size: 52px; }
+[data-layout="portrait"] #numpad .np-back { order: 1; font-size: 56px; }
+[data-layout="portrait"] #numpad [data-k="0"] { order: 2; }
+[data-layout="portrait"] #numpad .np-go { order: 3; }
+
+/* Portrait: menus sit in the meadow below the scene, so Machiki and the forest stay in view. */
+[data-layout="portrait"] #title { padding: 720px 0 var(--safe-bottom); }
+[data-layout="portrait"] #end { align-items: flex-end; padding-bottom: calc(24px + var(--safe-bottom)); }
+[data-layout="portrait"] .title-panel { margin-left: 0; }
+[data-layout="portrait"] .cols { grid-template-columns: 1fr; }
+[data-layout="portrait"] .shop-panel { max-height: none; }
+[data-layout="portrait"] .shop-sub { display: none; }
+[data-layout="portrait"] .shop-head { flex-wrap: wrap; justify-content: space-between; }
+[data-layout="portrait"] .shop-head h2 { flex: 1; }

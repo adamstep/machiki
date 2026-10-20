@@ -1,6 +1,6 @@
 // Machiki's Berry Run — game loop, rules and screens.
 (() => {
-  const BEAR_X = 240;
+  let BEAR_X = 240;           // moved right a little on phones with a notch on the left
   const REACH = 70;            // an item "touches" Machiki when its front edge is this far ahead of him
   const LEVEL_SIZE = 10;
   const SECONDS = { relaxed: 14, normal: 10, quick: 7 }; // time from an item appearing to reaching Machiki
@@ -44,20 +44,59 @@
 
   // ---------------------------------------------------------------- layout
 
+  // The stage is laid out in "logical" pixels and scaled to the screen. Its shape follows the screen:
+  //  wide     (landscape, 4:3 or wider): the 720-tall scene fills the screen; the number pad sits on the grass.
+  //  strip    (squarish): the scene on top, a meadow strip below it for the number pad.
+  //  portrait: the scene on top, then the problem and a big 3×4 number pad below it.
+  const safeProbe = document.createElement('div');
+  safeProbe.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)';
+  document.body.appendChild(safeProbe);
+
   function fit() {
-    const s = Math.min(innerWidth / W, innerHeight / H);
+    const vw = innerWidth, vh = innerHeight, aspect = vw / vh;
+    let layout, s, width;
+    if (aspect >= 1.33) { layout = 'wide'; s = vh / H; width = Math.min(vw / s, 2400); }
+    else if (aspect >= 0.85) { layout = 'strip'; width = Math.max(960, 840 * aspect); s = vw / width; }
+    else { layout = 'portrait'; s = Math.min(vw / 700, vh / 1370); width = vw / s; }
+    W = Math.round(width);
+    const height = layout === 'wide' ? H : Math.round(vh / s);
+
+    // Keep buttons clear of notches and the home indicator.
+    const pad = getComputedStyle(safeProbe), inset = {};
+    for (const side of ['top', 'right', 'bottom', 'left']) {
+      inset[side] = (parseFloat(pad[`padding-${side}`]) || 0) / s;
+      stage.style.setProperty(`--safe-${side}`, `${inset[side]}px`);
+    }
+    BEAR_X = 240 + inset.left;
+
+    stage.style.width = `${W}px`;
+    stage.style.height = `${height}px`;
     stage.style.transform = `translate(-50%, -50%) scale(${s})`;
+    document.body.dataset.layout = layout;
+    document.body.classList.toggle('small', s < 0.75); // phones: bigger buttons
+    canvas.style.width = `${W}px`;
     g.k = s * (window.devicePixelRatio || 1);
     canvas.width = Math.round(W * g.k);
     canvas.height = Math.round(H * g.k);
   }
   addEventListener('resize', fit);
+  addEventListener('orientationchange', () => setTimeout(fit, 200));
+  if (window.visualViewport) visualViewport.addEventListener('resize', fit);
   fit();
 
   // ---------------------------------------------------------------- level flow
 
+  // On phones and tablets, hide the browser's bars while playing. iPhones don't allow this for web
+  // pages; there, "Add to Home Screen" gives the same full-screen game.
+  function goFullscreen() {
+    const el = document.documentElement;
+    if (!matchMedia('(pointer: coarse)').matches || document.fullscreenElement || !el.requestFullscreen) return;
+    el.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+  }
+
   function startLevel() {
     Sound.init();
+    goFullscreen();
     Object.assign(g, {
       mode: 'countdown', paused: false, countT: 0, countStep: -1,
       queue: SRS.buildLevel(data.srs, data.settings, LEVEL_SIZE), qIndex: 0, q: null, item: null,
@@ -575,9 +614,12 @@
   function refreshTitle() {
     $('title-total').textContent = data.totalBerries;
     $('btn-play').textContent = `▶ Play Level ${data.level}`;
-    $('howto').innerHTML = voiceOn()
-      ? 'Say the answer out loud, or type it · <kbd>P</kbd> pauses'
-      : 'Type the answer and press <kbd>Enter</kbd> · <kbd>P</kbd> pauses';
+    const touch = matchMedia('(pointer: coarse)').matches;
+    $('howto').innerHTML = touch
+      ? (voiceOn() ? 'Say the answer out loud, or tap the numbers' : 'Tap the numbers, then tap <b>Go!</b>')
+      : voiceOn()
+        ? 'Say the answer out loud, or type it · <kbd>P</kbd> pauses'
+        : 'Type the answer and press <kbd>Enter</kbd> · <kbd>P</kbd> pauses';
     refreshToggles();
   }
 
@@ -834,6 +876,9 @@
     if (btn) btn.blur(); // so Enter types answers instead of re-pressing the button
   });
   addEventListener('pointerdown', () => Sound.init(), { once: true });
+  // Stop pinches and quick double taps on the number pad from zooming the page (iOS Safari).
+  document.addEventListener('gesturestart', e => e.preventDefault());
+  document.addEventListener('dblclick', e => e.preventDefault());
 
   $('btn-play').addEventListener('click', startLevel);
   $('btn-next').addEventListener('click', startLevel);

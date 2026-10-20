@@ -1,5 +1,7 @@
 // All of the game's graphics are drawn with the Canvas API — no image files needed.
-const W = 1280, H = 720, GROUND_Y = 588;
+// The scene is always 720 tall; its width follows the screen's shape (set by fit() in game.js).
+let W = 1280;
+const H = 720, GROUND_Y = 588;
 
 const Art = (() => {
   const TAU = Math.PI * 2;
@@ -49,7 +51,7 @@ const Art = (() => {
     ctx.fillRect(0, 0, W, H);
 
     // A friendly sun
-    const sx = 1150, sy = 190;
+    const sx = W - 130, sy = 190;
     ctx.save();
     ctx.translate(sx, sy);
     ctx.rotate(t * 0.12);

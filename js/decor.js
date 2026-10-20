@@ -694,7 +694,7 @@ const Decor = (() => {
     const L = LAYERS[name], key = name.length * 31.7;
     const per = it => it.per ?? L.per;
     const total = list.reduce((s, it) => s + per(it), 0);
-    const fill = Math.min(L.max, total * L.spacing / W);
+    const fill = Math.min(L.max, total * L.spacing / 1280); // `per` counts are per 1280px of scenery
     // Which item a slot would hold, chosen in proportion to each item's frequency.
     const pickFor = (i, salt = 0) => {
       let roll = rnd(i * 7.13 + key + salt) * total;

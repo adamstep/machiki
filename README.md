@@ -15,6 +15,18 @@ Open `index.html` in a browser (double-clicking it works, no server or install n
 - If time runs out he trips, drops a few berries, and the right answer is shown.
 - Each level has 10 questions. Berries add up to a total that's saved between sessions.
 
+## Phones and tablets
+
+The game adapts to the screen's shape:
+
+- **Landscape** (phones, tablets, computers): the forest fills the whole screen, with the number
+  pad on the grass. The keys are bigger on phones.
+- **Portrait**: the forest is on top, and the problem and a big 3×4 number pad sit below it.
+- **Squarish screens**: the number pad gets its own strip under the forest.
+
+On Android phones and iPads, starting a level switches to full screen. On iPhone, use Safari's
+**Share → Add to Home Screen** to play full screen like an app.
+
 ## Berry Shop
 
 From the home screen or the end of a level, **🏡 Berry Shop** lets the player spend berries on 60 hand-drawn items. The
