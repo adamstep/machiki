@@ -756,25 +756,72 @@
       return;
     }
     confirmId = null;
+    const before = data.totalBerries;
     data.totalBerries -= item.price;
     data.owned.push(id);
     owned = new Set(data.owned);
     persist();
     Sound.sfx.buy();
-    toast(item.path ? `${item.name} will show up on Machiki's path!` : `${item.name} will appear in Machiki's forest!`);
-    renderShop(id);
+    btn.textContent = '✨';
+    btn.disabled = true;
+    shopBusy = true;
+    flyBerries(btn.closest('.card'), before, item.price, () => {
+      shopBusy = false;
+      toast(item.path ? `${item.name} will show up on Machiki's path!` : `${item.name} will appear in Machiki's forest!`);
+      renderShop(id);
+    });
+  }
+
+  // Berries fly in an arc from the berry total into the item's picture, so it's clear where they went.
+  let shopBusy = false;
+  function flyBerries(card, before, price, done) {
+    const panel = ui.shop.querySelector('.shop-panel'), box = panel.getBoundingClientRect();
+    const scale = box.width / panel.offsetWidth; // the whole stage is scaled to fit the window
+    const centre = el => {
+      const r = el.getBoundingClientRect();
+      return { x: (r.left + r.width / 2 - box.left) / scale, y: (r.top + r.height / 2 - box.top) / scale };
+    };
+    const from = centre($('shop-pill').querySelector('.ico')), to = centre(card.querySelector('canvas'));
+    const count = Math.min(14, 5 + Math.round(price / 100));
+    const counter = $('shop-berries');
+    bump($('shop-pill'));
+    let landed = 0;
+    for (let i = 0; i < count; i++) {
+      const berry = document.createElement('div');
+      berry.className = 'flying-berry';
+      berry.textContent = '🫐';
+      panel.appendChild(berry);
+      const via = { x: (from.x + to.x) / 2 + (Math.random() - 0.5) * 180, y: Math.min(from.y, to.y) - 60 - Math.random() * 90 };
+      const frames = [];
+      for (let k = 0; k <= 12; k++) {
+        const t = k / 12, u = 1 - t;
+        const x = u * u * from.x + 2 * u * t * via.x + t * t * to.x;
+        const y = u * u * from.y + 2 * u * t * via.y + t * t * to.y;
+        frames.push({ transform: `translate(${x}px, ${y}px) translate(-50%, -50%) scale(${1.25 - 0.55 * t}) rotate(${t * 300}deg)` });
+      }
+      const delay = i * 75;
+      // The total ticks down as each berry leaves...
+      setTimeout(() => { counter.textContent = Math.round(before - price * (i + 1) / count); }, delay);
+      // ...and each one pops into the picture when it lands.
+      berry.animate(frames, { duration: 700, delay, easing: 'cubic-bezier(.4, 0, .7, 1)', fill: 'backwards' }).onfinish = () => {
+        berry.remove();
+        Sound.sfx.pop(i);
+        card.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.06)' }, { transform: 'scale(1)' }], { duration: 160 });
+        if (++landed === count) done();
+      };
+    }
   }
 
   $('shop-tabs').addEventListener('click', e => {
     const tab = e.target.closest('button')?.dataset.tab;
-    if (!tab) return;
+    if (!tab || shopBusy) return;
     shopTab = tab;
     confirmId = null;
     renderShop();
   });
   $('shop-grid').addEventListener('click', e => {
     const btn = e.target.closest('button[data-buy]');
-    if (btn) buy(btn.dataset.buy, btn);
+    if (btn && !shopBusy) buy(btn.dataset.buy, btn);
   });
 
   // ---------------------------------------------------------------- input

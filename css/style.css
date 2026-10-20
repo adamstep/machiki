@@ -411,6 +411,16 @@ kbd {
 .card .buy.cant { background: #eee6da; color: #a08a70; border-color: #c9b59a; box-shadow: none; }
 .card .buy.confirm { background: var(--green); color: #fff; font-size: 18px; animation: bump .3s; }
 .card .buy.shake { animation: shake .4s; }
+.flying-berry {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  font-size: 30px;
+  line-height: 1;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 0 rgba(74, 42, 23, .35));
+}
 .owned-tag { padding: 8px 0; font-size: 18px; font-weight: 700; color: var(--green-d); }
 
 .shop-toast {
