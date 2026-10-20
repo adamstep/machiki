@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Machiki's Berry Run</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="stage">
+  <canvas id="game"></canvas>
+
+  <!-- In-game HUD -->
+  <div id="hud" class="hidden">
+    <div class="hud-left">
+      <div class="pill" id="pack-pill" title="Berries in Machiki's knapsack"><span class="ico">🎒</span><span id="hud-berries">0</span></div>
+      <div class="pill streak" id="streak-pill" title="Correct answers in a row"><span class="ico">🔥</span><span id="hud-streak">0</span></div>
+    </div>
+    <div class="hud-right">
+      <div class="pill" title="All the berries you have ever collected"><span class="ico">🫐</span><span id="hud-total">0</span></div>
+      <button class="icon-btn" id="btn-pause" aria-label="Pause (P)">⏸</button>
+    </div>
+  </div>
+
+  <div id="problem" class="hidden">
+    <div class="qcount">Question <b id="q-num">1</b> of <b id="q-total">10</b></div>
+    <div class="eq"><span id="eq-text"></span><span id="answer" class="answer"></span></div>
+    <div id="feedback" class="hint">&nbsp;</div>
+    <div class="meter"><div id="meter-fill"></div></div>
+  </div>
+
+  <div id="numpad" class="hidden">
+    <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+    <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+    <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+    <button data-k="0">0</button>
+    <button data-k="back" class="np-back" aria-label="Delete">⌫</button>
+    <button data-k="enter" class="np-go">Go!</button>
+  </div>
+
+  <div id="countdown" class="hidden"></div>
+
+  <!-- Title screen -->
+  <div id="title" class="screen">
+    <div class="panel title-panel">
+      <h1 class="logo"><span>Machiki's</span><span>Berry Run</span></h1>
+      <p class="tagline">Solve the sums to help Machiki the bear<br>pick berries and hop over logs!</p>
+      <div class="total-badge">🫐 <b id="title-total">0</b> berries collected</div>
+      <button id="btn-play" class="btn btn-green btn-big">▶ Play Level 1</button>
+      <div class="row">
+        <button id="btn-music-title" class="btn btn-blue">🎵 Music: On</button>
+        <button id="btn-grownups" class="btn btn-orange">⚙️ Grown-ups</button>
+      </div>
+      <p class="small">Type the answer and press <kbd>Enter</kbd> · <kbd>P</kbd> pauses</p>
+    </div>
+  </div>
+
+  <!-- Pause -->
+  <div id="pause" class="screen dim hidden">
+    <div class="panel">
+      <h2>Paused</h2>
+      <p class="small">Machiki is having a little rest. 🐻💤</p>
+      <button id="btn-resume" class="btn btn-green btn-big">▶ Keep going</button>
+      <div class="row">
+        <button id="btn-music-pause" class="btn btn-blue">🎵 Music: On</button>
+        <button id="btn-sfx-pause" class="btn btn-blue">🔊 Sounds: On</button>
+      </div>
+      <button id="btn-quit" class="btn btn-plain">🏠 Back to start (keep your berries)</button>
+    </div>
+  </div>
+
+  <!-- Level complete -->
+  <div id="end" class="screen hidden">
+    <div class="panel end-panel">
+      <h2 id="end-title">Well done!</h2>
+      <div id="end-sub" class="subtitle">Level 1 complete</div>
+      <div id="end-stars" class="stars"></div>
+      <div class="stats">
+        <div class="stat"><span class="ico">✅</span><span class="label">Questions answered</span><b id="end-correct">0 / 10</b></div>
+        <div class="stat"><span class="ico">🎒</span><span class="label">Berries earned</span><b id="end-berries">0</b></div>
+        <div class="stat"><span class="ico">🔥</span><span class="label">Longest streak</span><b id="end-streak">0</b></div>
+        <div class="stat total"><span class="ico">🫐</span><span class="label">Total berries</span><b id="end-total">0</b></div>
+      </div>
+      <div class="row">
+        <button id="btn-home" class="btn btn-plain">🏠 Home</button>
+        <button id="btn-next" class="btn btn-green btn-big">Next level ▶</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grown-ups: settings + progress -->
+  <div id="grownups" class="screen dim hidden">
+    <div class="panel wide">
+      <h2>For grown-ups</h2>
+      <div class="cols">
+        <div>
+          <h3>Settings</h3>
+          <div id="settings"></div>
+        </div>
+        <div>
+          <h3>Progress</h3>
+          <div id="progress"></div>
+          <h4>Tricky facts (practised more often)</h4>
+          <div id="tricky" class="chips"></div>
+        </div>
+      </div>
+      <div class="row">
+        <button id="btn-reset" class="btn btn-plain danger">Reset all progress</button>
+        <button id="btn-close-grownups" class="btn btn-green">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/storage.js"></script>
+<script src="js/srs.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/art.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
