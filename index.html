@@ -26,6 +26,7 @@
   </div>
 
   <div id="problem" class="hidden">
+    <div id="mic" class="mic hidden" title="Listening — say the answer!">🎤</div>
     <div class="qcount">Question <b id="q-num">1</b> of <b id="q-total">10</b></div>
     <div class="eq"><span id="eq-text"></span><span id="answer" class="answer"></span></div>
     <div id="feedback" class="hint">&nbsp;</div>
@@ -51,10 +52,28 @@
       <div class="total-badge">🫐 <b id="title-total">0</b> berries collected</div>
       <button id="btn-play" class="btn btn-green btn-big">▶ Play Level 1</button>
       <div class="row">
+        <button id="btn-shop" class="btn btn-yellow btn-mid">🏡 Berry Shop</button>
+      </div>
+      <div class="row">
         <button id="btn-music-title" class="btn btn-blue">🎵 Music: On</button>
         <button id="btn-grownups" class="btn btn-orange">⚙️ Grown-ups</button>
       </div>
-      <p class="small">Type the answer and press <kbd>Enter</kbd> · <kbd>P</kbd> pauses</p>
+      <p class="small" id="howto">Type the answer and press <kbd>Enter</kbd> · <kbd>P</kbd> pauses</p>
+    </div>
+  </div>
+
+  <!-- Berry Shop -->
+  <div id="shop" class="screen hidden">
+    <div class="panel shop-panel">
+      <div class="shop-head">
+        <h2>Berry Shop</h2>
+        <p class="shop-sub">Spend your berries to grow Machiki's forest!</p>
+        <div class="pill" id="shop-pill"><span class="ico">🫐</span><span id="shop-berries">0</span></div>
+        <button id="btn-shop-close" class="btn btn-green">Done</button>
+      </div>
+      <div id="shop-tabs" class="shop-tabs"></div>
+      <div id="shop-grid" class="shop-grid"></div>
+      <div id="shop-toast" class="shop-toast hidden"></div>
     </div>
   </div>
 
@@ -86,7 +105,8 @@
       </div>
       <div class="row">
         <button id="btn-home" class="btn btn-plain">🏠 Home</button>
-        <button id="btn-next" class="btn btn-green btn-big">Next level ▶</button>
+        <button id="btn-end-shop" class="btn btn-yellow">🏡 Berry Shop</button>
+        <button id="btn-next" class="btn btn-green">Next level ▶</button>
       </div>
     </div>
   </div>
@@ -105,6 +125,7 @@
           <div id="progress"></div>
           <h4>Tricky facts (practised more often)</h4>
           <div id="tricky" class="chips"></div>
+          <div id="voice-settings"></div>
         </div>
       </div>
       <div class="row">
@@ -118,7 +139,9 @@
 <script src="js/storage.js"></script>
 <script src="js/srs.js"></script>
 <script src="js/audio.js"></script>
+<script src="js/voice.js"></script>
 <script src="js/art.js"></script>
+<script src="js/decor.js"></script>
 <script src="js/game.js"></script>
 </body>
 </html>

@@ -7,8 +7,9 @@ const Store = (() => {
     level: 1,
     levelsPlayed: 0,
     bestStreak: 0,
-    settings: { speed: 'relaxed', ops: 'both', max: 20, pad: true, music: true, sfx: true },
+    settings: { speed: 'relaxed', ops: 'both', max: 20, pad: true, music: true, sfx: true, voice: false },
     srs: { facts: {} },
+    owned: [], // ids of Berry Shop items
   });
 
   function load() {
@@ -21,6 +22,7 @@ const Store = (() => {
         ...saved,
         settings: { ...base.settings, ...saved.settings },
         srs: saved.srs && saved.srs.facts ? saved.srs : base.srs,
+        owned: Array.isArray(saved.owned) ? saved.owned : base.owned,
       };
     } catch {
       return base;

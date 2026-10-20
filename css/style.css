@@ -148,6 +148,30 @@ button { font-family: inherit; cursor: pointer; }
 #problem.pop { animation: pop .35s ease-out; }
 @keyframes pop { 0% { transform: translateX(-50%) scale(.7); } 70% { transform: translateX(-50%) scale(1.05); } 100% { transform: translateX(-50%) scale(1); } }
 
+.answer.heard { color: #8fa3b8; }
+
+.mic {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: #e6e0d6;
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+}
+.mic.listening { background: #c9f5c4; animation: listen 1.6s ease-in-out infinite; }
+.mic.heard { background: var(--yellow); }
+.mic.blocked { opacity: .45; filter: grayscale(1); animation: none; }
+@keyframes listen {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(76, 195, 90, .7); }
+  50% { box-shadow: 0 0 0 10px rgba(76, 195, 90, 0); }
+}
+
 #feedback { font-size: 24px; font-weight: 600; min-height: 32px; margin-top: 4px; }
 #feedback.hint { color: #7a5a3d; }
 #feedback.good { color: var(--green-d); }
@@ -228,7 +252,7 @@ button { font-family: inherit; cursor: pointer; }
   box-shadow: 0 12px 0 rgba(74, 42, 23, .35);
   animation: rise .35s ease-out;
 }
-.panel.wide { width: 980px; text-align: left; }
+.panel.wide { width: 980px; max-height: 696px; overflow-y: auto; padding-top: 20px; padding-bottom: 22px; text-align: left; }
 @keyframes rise { from { transform: translateY(30px) scale(.95); opacity: 0; } }
 
 .title-panel { margin-left: 260px; }
@@ -288,12 +312,17 @@ kbd {
 .btn-green { background: var(--green); }
 .btn-blue { background: var(--blue); }
 .btn-orange { background: var(--orange); }
+.btn-yellow { background: var(--yellow); color: var(--ink); }
+.btn-mid { font-size: 26px; padding: 10px 30px; }
 .btn-plain { background: #fff; color: var(--ink); font-size: 20px; margin-top: 16px; }
 .btn-plain.danger { color: #c0392b; }
 .btn-plain.danger.confirm { background: var(--red); color: #fff; }
 
 /* ---------- End screen ---------- */
-.end-panel { width: 600px; }
+.end-panel { width: 680px; }
+.end-panel .row { align-items: center; }
+.end-panel .row .btn { margin-top: 0; padding: 12px 22px; font-size: 24px; white-space: nowrap; }
+.end-panel .row #btn-next { font-size: 28px; }
 .subtitle { font-size: 24px; font-weight: 600; opacity: .7; }
 .stars { font-size: 72px; letter-spacing: 8px; line-height: 1.2; }
 .stars .on { color: var(--yellow); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; display: inline-block; animation: star-in .5s backwards; }
@@ -314,9 +343,96 @@ kbd {
 .stat b { font-size: 32px; }
 .stat.total { background: #efe3ff; border-color: #8d6ad8; }
 
+/* ---------- Berry Shop ---------- */
+.shop-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 1200px;
+  height: 680px;
+  padding: 18px 26px 20px;
+  text-align: left;
+}
+.shop-head { display: flex; align-items: center; gap: 18px; }
+.shop-head h2 { font-size: 46px; }
+.shop-sub { flex: 1; margin: 0; font-size: 20px; opacity: .75; }
+.shop-head .btn { font-size: 24px; padding: 8px 26px; }
+
+.shop-tabs { display: flex; gap: 8px; margin: 12px 0; }
+.shop-tabs button {
+  flex: 1;
+  padding: 10px 6px;
+  background: #fff;
+  border: 4px solid var(--ink);
+  border-radius: 18px;
+  font-size: 20px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.shop-tabs button small { font-size: 14px; opacity: .6; }
+.shop-tabs button.on { background: var(--orange); color: #fff; box-shadow: 0 4px 0 rgba(74, 42, 23, .35); }
+
+.shop-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-auto-rows: 236px;
+  gap: 14px;
+  padding: 4px 6px 8px 2px;
+  overflow-y: auto;
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 8px 10px;
+  background: #fff;
+  border: 4px solid #e6d3b8;
+  border-radius: 22px;
+}
+.card canvas { width: 100%; aspect-ratio: 196 / 128; border-radius: 14px; background: linear-gradient(#e3f6ff, #e9f8e0 70%); }
+.card .name { flex: 1; display: flex; align-items: center; margin: 4px 0; font-size: 19px; font-weight: 600; text-align: center; line-height: 1.1; }
+.card.owned { background: #effbea; border-color: var(--green); }
+.card.bought { animation: bought .6s ease-out; }
+@keyframes bought { 40% { transform: scale(1.08) rotate(-2deg); } }
+.card .buy {
+  width: 100%;
+  padding: 6px 0;
+  background: var(--yellow);
+  border: 4px solid var(--ink);
+  border-radius: 14px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink);
+  box-shadow: 0 4px 0 rgba(74, 42, 23, .35);
+}
+.card .buy:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(74, 42, 23, .35); }
+.card .buy.cant { background: #eee6da; color: #a08a70; border-color: #c9b59a; box-shadow: none; }
+.card .buy.confirm { background: var(--green); color: #fff; font-size: 18px; animation: bump .3s; }
+.card .buy.shake { animation: shake .4s; }
+.owned-tag { padding: 8px 0; font-size: 18px; font-weight: 700; color: var(--green-d); }
+
+.shop-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  padding: 10px 26px;
+  background: var(--ink);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 600;
+  white-space: nowrap;
+  animation: rise .3s ease-out;
+}
+
 /* ---------- Grown-ups ---------- */
 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 34px; margin-top: 14px; }
-.setting { margin-bottom: 14px; }
+.setting { margin-bottom: 12px; }
+.setting-pair { display: flex; gap: 32px; }
+#voice-settings { margin-top: 22px; }
 .setting .name { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
 .seg { display: flex; flex-wrap: wrap; gap: 6px; }
 .seg button {
@@ -328,6 +444,16 @@ kbd {
   color: var(--ink);
 }
 .seg button.on { background: var(--blue); color: #fff; }
+.seg button:disabled { opacity: .4; cursor: default; }
+.voice-note { margin: 6px 0 0; font-size: 14px; line-height: 1.35; opacity: .75; }
+.voice-test {
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: #fff;
+  border: 2px dashed #c79a6c;
+  border-radius: 12px;
+  font-size: 16px;
+}
 #progress { font-size: 19px; line-height: 1.6; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 36px; }
 .chip {

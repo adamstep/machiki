@@ -108,6 +108,13 @@ const Sound = (() => {
     tick() { tone({ f: midi(72), dur: 0.18, type: 'triangle', vol: 0.22 }); },
     go() { notes([[0, 79, 0.35], [0, 84, 0.45]], { type: 'triangle', vol: 0.2 }); },
     pause() { tone({ f: 640, to: 420, dur: 0.14, vol: 0.15 }); },
+    // "Ka-ching!" for buying something in the Berry Shop.
+    buy() {
+      noise({ dur: 0.12, vol: 0.1, freq: 5000, filter: 'highpass' });
+      notes([[0, 83, 0.08], [0.08, 88, 0.4]], { type: 'triangle', vol: 0.22 });
+      notes([[0.16, 96, 0.25], [0.21, 100, 0.25], [0.26, 103, 0.35]], { vol: 0.07 });
+    },
+    nope() { tone({ f: 300, to: 220, dur: 0.18, type: 'triangle', vol: 0.18 }); },
     fanfare() {
       const melody = [[0, 67, 0.14], [0.15, 72, 0.14], [0.3, 76, 0.14], [0.45, 79, 0.3], [0.8, 76, 0.14], [0.95, 79, 0.7]];
       notes(melody, { type: 'triangle', vol: 0.2 });

@@ -108,32 +108,6 @@ const Art = (() => {
     }
   }
 
-  function roundTree(ctx, x, y, s, i) {
-    ctx.beginPath(); ctx.roundRect(x - 12 * s, y - 90 * s, 24 * s, 90 * s, 6 * s); paint(ctx, '#8b5a35', LINE, 3.5);
-    const base = [[0, -130, 52], [-42, -100, 38], [42, -100, 38], [-20, -160, 34], [24, -158, 36]]
-      .map(([cx, cy, r]) => [x + cx * s, y + cy * s, r * s]);
-    const shades = [['#3f9a4f', '#5cbd62'], ['#4aa857', '#6fcc6b'], ['#3a8f5a', '#56b874']][Math.floor(rnd(i * 3.1) * 3)];
-    puffs(ctx, base, shades[0], LINE, 3.5);
-    puffs(ctx, base.map(([cx, cy, r]) => [cx - r * 0.18, cy - r * 0.2, r * 0.62]), shades[1]);
-    if (rnd(i * 7.7) > 0.55) { // a few apples or plums
-      const c = rnd(i * 2.3) > 0.5 ? '#ef4b4b' : '#9b59d0';
-      for (let k = 0; k < 4; k++) {
-        circle(ctx, x + (rnd(i + k) - 0.5) * 90 * s, y + (-100 - rnd(i * k + 1) * 60) * s, 6 * s);
-        paint(ctx, c, LINE, 2);
-      }
-    }
-  }
-
-  function flower(ctx, x, y, color) {
-    ctx.strokeStyle = '#3a8a3a'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - 18); ctx.stroke();
-    for (let k = 0; k < 5; k++) {
-      const a = k * TAU / 5;
-      circle(ctx, x + Math.cos(a) * 6, y - 22 + Math.sin(a) * 6, 5); paint(ctx, color);
-    }
-    circle(ctx, x, y - 22, 4); paint(ctx, '#ffd84a');
-  }
-
   function mushroom(ctx, x, y) {
     ctx.beginPath(); ctx.roundRect(x - 6, y - 16, 12, 16, 4); paint(ctx, '#fff3dc', LINE, 2.5);
     ctx.beginPath(); ctx.ellipse(x, y - 16, 17, 14, 0, Math.PI, TAU); ctx.closePath(); paint(ctx, '#ef4b4b', LINE, 2.5);
@@ -148,20 +122,19 @@ const Art = (() => {
     }
   }
 
-  const FLOWER_COLORS = ['#ff7eb6', '#ffffff', '#ffd84a', '#b388ff', '#ff8a5c'];
-
-  function background(ctx, wx, t) {
+  // The bare field is sky, sun, hills, grass and the path. Everything else is bought in the shop
+  // (see decor.js) and drawn into its layer, back to front.
+  function background(ctx, wx, t, owned) {
     sky(ctx, t);
-    layer(wx * 0.06 + t * 8, 420, (x, i) => cloud(ctx, x, 70 + rnd(i + 0.5) * 150, 0.7 + rnd(i + 9) * 0.6));
+    Decor.layer(ctx, 'backdrop', wx, t, owned);
+    Decor.layer(ctx, 'sky', wx, t, owned);
+    Decor.flyers(ctx, t, owned);
     hills(ctx, wx * 0.1, 400, 55, 0.004, 0.0107, '#b7e4c3');
-    layer(wx * 0.22, 64, (x, i) => pine(ctx, x, 478 + rnd(i * 4) * 10, 0.55 + rnd(i * 5) * 0.3, '#7fc48c'));
+    Decor.layer(ctx, 'far', wx, t, owned);
     hills(ctx, wx * 0.22, 486, 10, 0.011, 0.02, '#86c98f');
-    layer(wx * 0.45, 230, (x, i) => {
-      if (rnd(i * 1.7) > 0.4) roundTree(ctx, x, 548, 0.8 + rnd(i * 2.9) * 0.35, i);
-      else pine(ctx, x, 548, 1.1 + rnd(i) * 0.3, '#3f9654', LINE);
-    });
+    Decor.layer(ctx, 'landmark', wx, t, owned);
+    Decor.layer(ctx, 'mid', wx, t, owned);
 
-    // Grassy ground and dirt path
     ctx.fillStyle = '#79c94d';
     ctx.fillRect(0, 540, W, H - 540);
     ctx.fillStyle = '#69b843';
@@ -172,22 +145,10 @@ const Art = (() => {
     ctx.fillRect(0, 560, W, 5);
     ctx.fillRect(0, 613, W, 5);
 
-    layer(wx, 90, (x, i) => {
-      const r = rnd(i * 3.3);
-      if (r < 0.35) { ellipse(ctx, x, 588 + rnd(i) * 20, 7, 4.5); paint(ctx, '#c79a63'); }
-      else if (r < 0.5) { ellipse(ctx, x, 575 + rnd(i) * 30, 4, 3); paint(ctx, '#b8875a'); }
-    });
-    layer(wx, 70, (x, i) => {
-      const r = rnd(i * 5.1), y = 548 + rnd(i * 1.3) * 8;
-      if (r < 0.45) tuft(ctx, x, y);
-      else if (r < 0.75) flower(ctx, x, y, FLOWER_COLORS[i & 3 ? Math.floor(rnd(i) * 5) : 0]);
-    });
-    layer(wx, 55, (x, i) => {
-      const r = rnd(i * 2.2), y = 640 + rnd(i * 6.6) * 70;
-      if (r < 0.4) tuft(ctx, x, y);
-      else if (r < 0.75) flower(ctx, x, y, FLOWER_COLORS[Math.floor(rnd(i * 4) * 5)]);
-      else if (r < 0.83) mushroom(ctx, x, y);
-    });
+    Decor.layer(ctx, 'path', wx, t, owned);
+    Decor.layer(ctx, 'near', wx, t, owned);
+    Decor.layer(ctx, 'front', wx, t, owned);
+    Decor.layer(ctx, 'air', wx, t, owned);
   }
 
   // ---------------------------------------------------------------- berries
@@ -230,6 +191,23 @@ const Art = (() => {
           circle(ctx, x + dx * r, y + dy * r, r * 0.62); paint(ctx, '#e0263a', '#8a1020', 2.5);
           circle(ctx, x + dx * r - r * 0.2, y + dy * r - r * 0.2, r * 0.15); paint(ctx, 'rgba(255,255,255,0.7)');
         }
+        break;
+      }
+      case 'grapes': {
+        ctx.strokeStyle = '#6b4a2a'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(x, y - r * 0.8); ctx.lineTo(x + r * 0.3, y - r * 1.3); ctx.stroke();
+        ellipse(ctx, x + r * 0.7, y - r * 1.15, r * 0.45, r * 0.25, -0.3); paint(ctx, '#5cc04a');
+        for (const [dx, dy] of [[-0.6, -0.4], [0, -0.45], [0.6, -0.4], [-0.3, 0.12], [0.3, 0.12], [0, 0.65]]) {
+          circle(ctx, x + dx * r, y + dy * r, r * 0.42); paint(ctx, '#8a5ad0', '#4a2a80', 1.8);
+          circle(ctx, x + dx * r - r * 0.12, y + dy * r - r * 0.12, r * 0.1); paint(ctx, 'rgba(255,255,255,0.6)');
+        }
+        break;
+      }
+      case 'golden': {
+        circle(ctx, x, y, r * 1.55); paint(ctx, 'rgba(255, 230, 120, 0.35)');
+        circle(ctx, x, y, r); paint(ctx, '#ffd23a', '#b8800a', 2.5);
+        ellipse(ctx, x - r * 0.35, y - r * 0.3, r * 0.22, r * 0.32, 0.5); paint(ctx, 'rgba(255,255,255,0.75)');
+        star(ctx, x + r * 0.7, y - r * 0.7, r * 0.42, '#fffbe0');
         break;
       }
     }
@@ -325,14 +303,76 @@ const Art = (() => {
     }
   }
 
-  const OBSTACLE_DRAW = { log, rock, stump, thorns };
+  function puddle(ctx, x, y, t) {
+    ellipse(ctx, x, y - 6, 76, 17); paint(ctx, '#8a5a35', LINE);
+    ellipse(ctx, x - 4, y - 8, 60, 10); paint(ctx, '#a8764a');
+    ellipse(ctx, x - 26, y - 11, 15, 3); paint(ctx, 'rgba(255,255,255,0.45)');
+    for (let k = 0; k < 3; k++) {
+      const p = (t * 0.8 + k / 3) % 1;
+      circle(ctx, x + 10 + k * 14, y - 9, 2 + p * 3); paint(ctx, null, `rgba(230, 200, 160, ${1 - p})`, 2);
+    }
+    for (const [dx, dy, r] of [[-70, -20, 5], [-62, -28, 3.5], [68, -22, 4.5], [76, -14, 3]]) {
+      circle(ctx, x + dx, y + dy, r); paint(ctx, '#8a5a35', LINE, 2);
+    }
+  }
+
+  function haybale(ctx, x, y) {
+    ctx.beginPath(); ctx.roundRect(x - 60, y - 74, 120, 74, 14); paint(ctx, '#f2c94c', '#8a5a12');
+    ctx.strokeStyle = '#d9a82a'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    for (const [dx, dy] of [[-44, -56], [-10, -40], [20, -60], [36, -24], [-36, -18], [6, -14], [-20, -64], [44, -48]]) {
+      ctx.beginPath(); ctx.moveTo(x + dx, y + dy); ctx.lineTo(x + dx + 10, y + dy - 4); ctx.stroke();
+    }
+    for (const dx of [-32, 28]) { ctx.beginPath(); ctx.rect(x + dx, y - 74, 6, 74); paint(ctx, '#b0442a', LINE, 2); }
+    ctx.strokeStyle = '#e8b830'; ctx.lineWidth = 2.5;
+    for (const dx of [-40, -8, 18, 44]) { ctx.beginPath(); ctx.moveTo(x + dx, y - 73); ctx.lineTo(x + dx - 4, y - 84); ctx.stroke(); }
+  }
+
+  function pinecone(ctx, x, y) {
+    ctx.beginPath(); ctx.roundRect(x - 5, y - 104, 10, 14, 3); paint(ctx, '#6b4a2a', LINE, 2.5);
+    ellipse(ctx, x, y - 48, 40, 48); paint(ctx, '#7a4520', LINE);
+    for (let j = 0; j < 6; j++) {
+      const sy = y - 12 - j * 15, half = 40 * Math.sqrt(Math.max(0, 1 - ((sy - (y - 48)) / 48) ** 2)) - 6;
+      for (let sx = x - half + (j % 2) * 8; sx <= x + half; sx += 16) {
+        ellipse(ctx, sx, sy, 9, 7); paint(ctx, '#b8743a', LINE, 1.8);
+        ellipse(ctx, sx - 2, sy - 2, 4, 2.5); paint(ctx, '#d99a5a');
+      }
+    }
+  }
+
+  function beehive(ctx, x, y, t) {
+    ctx.beginPath(); ctx.roundRect(x - 40, y - 26, 80, 26, 4); paint(ctx, '#8b5a35', LINE);
+    ellipse(ctx, x, y - 26, 40, 8); paint(ctx, '#ecc58e', LINE, 3);
+    for (let k = 4; k >= 0; k--) {
+      const w = 44 - k * 7;
+      ctx.beginPath(); ctx.roundRect(x - w, y - 44 - k * 15, w * 2, 19, 9); paint(ctx, k % 2 ? '#f0b43c' : '#e8a42c', '#8a5a12', 2.5);
+    }
+    ellipse(ctx, x, y - 112, 12, 9); paint(ctx, '#f0b43c', '#8a5a12', 2.5);
+    ellipse(ctx, x, y - 38, 9, 6); paint(ctx, '#4a2a17');
+    for (let k = 0; k < 2; k++) {
+      const a = t * 3 + k * Math.PI;
+      bee(ctx, x + Math.cos(a) * 58, y - 80 + Math.sin(a * 2) * 18, t);
+    }
+  }
+
+  function bee(ctx, x, y, t) {
+    ellipse(ctx, x - 1, y - 6, 4, 6, -0.4); paint(ctx, `rgba(255,255,255,${0.5 + 0.4 * Math.abs(Math.sin(t * 40))})`, LINE, 1);
+    ctx.save();
+    ellipse(ctx, x, y, 7, 5); paint(ctx, '#ffd23a', LINE, 1.5);
+    ctx.clip();
+    ctx.fillStyle = LINE;
+    ctx.fillRect(x - 2.5, y - 6, 2.2, 12);
+    ctx.fillRect(x + 1.5, y - 6, 2.2, 12);
+    ctx.restore();
+  }
+
+  const OBSTACLE_DRAW = { log, rock, stump, thorns, puddle, haybale, pinecone, beehive };
 
   function item(ctx, it, t) {
     if (it.kind === 'bush') return bush(ctx, it);
     ellipse(ctx, it.x, GROUND_Y + 4, it.w * 0.5, 10); paint(ctx, 'rgba(0,0,0,0.15)');
     ctx.save();
     if (it.shake > 0) ctx.translate(Math.sin(it.shake * 50) * it.shake * 8, 0);
-    OBSTACLE_DRAW[it.type](ctx, it.x, GROUND_Y);
+    OBSTACLE_DRAW[it.type](ctx, it.x, GROUND_Y, t);
     ctx.restore();
     if (!it.picked) {
       for (let k = 0; k < 3; k++) {
@@ -488,5 +528,8 @@ const Art = (() => {
     ctx.globalAlpha = 1;
   }
 
-  return { background, item, bear, berry, bushSpots, particle, floater };
+  return {
+    background, item, bear, berry, bushSpots, particle, floater,
+    util: { circle, ellipse, paint, puffs, star, rnd, pine, cloud, mushroom, tuft, bee, LINE },
+  };
 })();

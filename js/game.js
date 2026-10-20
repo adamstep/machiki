@@ -9,9 +9,6 @@
   const TRIP_TIME = 2.4, TRIP_LOSS = 3;
   const PACK_TARGET = { x: 62, y: 50 };
   const PRAISE = ['Great job!', 'Awesome!', 'You got it!', 'Super!', 'Berry good!', 'Yum yum!', 'Brilliant!', 'Way to go!'];
-  const BERRY_VALUE = { blueberry: 3, strawberry: 4, raspberry: 4, blackberry: 5, cherry: 5 };
-  const BERRY_NAME = { blueberry: 'blueberries', strawberry: 'strawberries', raspberry: 'raspberries', blackberry: 'blackberries', cherry: 'cherries' };
-  const OBSTACLES = { log: { w: 150, name: 'log' }, rock: { w: 125, name: 'rock' }, stump: { w: 110, name: 'tree stump' }, thorns: { w: 140, name: 'thorny bush' } };
   const CONFETTI = ['#ff5c8a', '#ffd84a', '#4cc35a', '#3fa9f5', '#b388ff', '#ff9f2e'];
 
   const $ = id => document.getElementById(id);
@@ -24,12 +21,13 @@
   const stage = $('stage'), canvas = $('game'), ctx = canvas.getContext('2d');
   const ui = {
     hud: $('hud'), problem: $('problem'), numpad: $('numpad'), countdown: $('countdown'),
-    title: $('title'), pause: $('pause'), end: $('end'), grownups: $('grownups'),
-    answer: $('answer'), feedback: $('feedback'), meter: $('meter-fill'),
+    title: $('title'), pause: $('pause'), end: $('end'), grownups: $('grownups'), shop: $('shop'),
+    answer: $('answer'), feedback: $('feedback'), meter: $('meter-fill'), mic: $('mic'),
   };
 
   const data = Store.load();
   const persist = () => Store.save(data);
+  let owned = new Set(data.owned); // shop items bought so far
   Sound.setMusic(data.settings.music);
   Sound.setSfx(data.settings.sfx);
 
@@ -73,6 +71,7 @@
     show(ui.hud); show(ui.problem, false); show(ui.numpad, data.settings.pad);
     $('q-total').textContent = LEVEL_SIZE;
     updateHud();
+    syncVoice();
   }
 
   function updateCountdown(dt) {
@@ -100,22 +99,30 @@
     let kind = Math.random() < 0.6 ? 'bush' : 'obstacle';
     if (recent.length === 2 && recent[0] === recent[1]) kind = recent[0] === 'bush' ? 'obstacle' : 'bush';
     g.lastKinds.push(kind);
-    const berryType = pick(Object.keys(BERRY_VALUE));
+    const berry = pickBerry();
     const it = kind === 'bush'
-      ? { kind, type: 'bush', berryType, w: 140, value: BERRY_VALUE[berryType], spots: Art.bushSpots() }
-      : (type => ({ kind, type, berryType, w: OBSTACLES[type].w, value: 3 }))(pick(Object.keys(OBSTACLES)));
+      ? { kind, type: 'bush', berryType: berry.id, w: 140, value: berry.value, spots: Art.bushSpots() }
+      : (ob => ({ kind, type: ob.id, berryType: berry.id, w: ob.w, value: 3 }))(pick(Decor.pathTypes(owned, 'obstacle')));
     Object.assign(it, { picked: false, jumped: false, shake: 0, reward: 0 });
     it.x = W + it.w / 2 + 30;
     it.dist = gapOf(it);
     return it;
   }
 
+  // A berry type the player has unlocked. Golden berries are worth a lot, so they're rarer.
+  function pickBerry() {
+    const berries = Decor.pathTypes(owned, 'berry');
+    const berry = pick(berries);
+    return berry.rare && Math.random() < 0.6 ? pick(berries.filter(b => !b.rare)) : berry;
+  }
+
   const gapOf = it => it.x - it.w / 2 - (BEAR_X + REACH);
 
   function hintFor(it) {
+    const verb = voiceOn() ? 'Say' : 'Solve';
     return it.kind === 'bush'
-      ? `Solve it to pick the ${BERRY_NAME[it.berryType]}!`
-      : `Solve it to jump over the ${OBSTACLES[it.type].name}!`;
+      ? `${verb} it to pick the ${Decor.byId[it.berryType].label}!`
+      : `${verb} it to jump over the ${Decor.byId[it.type].label}!`;
   }
 
   function nextQuestion() {
@@ -250,7 +257,7 @@
     g.levelBerries -= loss;
     for (let i = 0; i < loss; i++) {
       g.particles.push({
-        berryType: pick(Object.keys(BERRY_VALUE)), x: BEAR_X - 50, y: GROUND_Y - 120,
+        berryType: pickBerry().id, x: BEAR_X - 50, y: GROUND_Y - 120,
         vx: -60 - Math.random() * 120, vy: -320 - Math.random() * 120, life: 1.4, gravity: 900,
       });
     }
@@ -339,6 +346,7 @@
     }
     setTimeout(() => { g.endReady = true; }, 1200);
     refreshTitle();
+    syncVoice();
   }
 
   function countUp(el, from, to) {
@@ -362,6 +370,7 @@
     for (const el of [ui.hud, ui.problem, ui.numpad, ui.countdown, ui.pause, ui.end]) show(el, false);
     refreshTitle();
     show(ui.title);
+    syncVoice();
   }
 
   function setPaused(p) {
@@ -371,7 +380,64 @@
     Sound.duck(p);
     Sound.sfx.pause();
     refreshToggles();
+    syncVoice();
   }
+
+  // ---------------------------------------------------------------- answering out loud
+
+  let grownupsOpen = false, micFlash = null, micState = 'off';
+  const voiceOn = () => data.settings.voice && Voice.supported;
+  const MIC_PROBLEMS = {
+    blocked: 'The microphone is blocked — type the answer instead.',
+    nomic: 'No microphone found — type the answer instead.',
+    network: 'Can\'t reach speech recognition — type the answer instead.',
+    error: 'Speech recognition stopped — type the answer instead.',
+  };
+
+  // Listen while a level is running (or while the Grown-ups panel is testing the microphone).
+  function syncVoice() {
+    show(ui.mic, voiceOn());
+    const playing = (g.mode === 'play' || g.mode === 'countdown') && !g.paused;
+    if (voiceOn() && grownupsOpen) Voice.listen(testHandlers);
+    else if (voiceOn() && playing) Voice.listen(gameHandlers);
+    else Voice.stop();
+  }
+
+  function setMicState(state) {
+    micState = state;
+    ui.mic.classList.toggle('listening', state === 'listening');
+    ui.mic.classList.toggle('blocked', state in MIC_PROBLEMS);
+    if (MIC_PROBLEMS[state] && g.mode === 'play') setFeedback(MIC_PROBLEMS[state], 'bad');
+    const test = $('voice-test');
+    if (test && (MIC_PROBLEMS[state] || state === 'listening')) test.textContent = MIC_PROBLEMS[state] || '🎤 Listening… say a number to test it.';
+  }
+
+  const gameHandlers = {
+    // Show what's being heard right away, before it's been confirmed.
+    onHear(text, value) {
+      if (g.phase !== 'approach' || g.paused || value === null) return;
+      ui.answer.textContent = value;
+      ui.answer.classList.add('heard');
+      ui.mic.classList.add('heard');
+      clearTimeout(micFlash);
+      micFlash = setTimeout(() => ui.mic.classList.remove('heard'), 400);
+    },
+    onNumber(value) {
+      if (g.mode !== 'play' || g.paused || g.phase !== 'approach') return;
+      g.input = String(value);
+      submit();
+    },
+    onState: setMicState,
+  };
+
+  const testHandlers = {
+    onHear(text, value) {
+      const test = $('voice-test');
+      if (test) test.textContent = `🎤 Heard “${text.trim()}”${value === null ? ' — no number' : ` → ${value}`}`;
+    },
+    onNumber() {},
+    onState: setMicState,
+  };
 
   // ---------------------------------------------------------------- per-frame update
 
@@ -460,7 +526,7 @@
 
   function draw() {
     ctx.setTransform(g.k, 0, 0, g.k, 0, 0);
-    Art.background(ctx, g.worldX, g.t);
+    Art.background(ctx, g.worldX, g.t, owned);
     for (const it of g.items) Art.item(ctx, it, g.t);
     Art.bear(ctx, BEAR_X, GROUND_Y, bearPose());
     for (const q of g.particles) Art.particle(ctx, q);
@@ -495,6 +561,7 @@
 
   function renderAnswer() {
     ui.answer.textContent = g.input;
+    ui.answer.classList.remove('heard');
     ui.answer.classList.toggle('cursor', g.phase === 'approach');
   }
 
@@ -508,6 +575,9 @@
   function refreshTitle() {
     $('title-total').textContent = data.totalBerries;
     $('btn-play').textContent = `▶ Play Level ${data.level}`;
+    $('howto').innerHTML = voiceOn()
+      ? 'Say the answer out loud, or type it · <kbd>P</kbd> pauses'
+      : 'Type the answer and press <kbd>Enter</kbd> · <kbd>P</kbd> pauses';
     refreshToggles();
   }
 
@@ -538,16 +608,30 @@
     { key: 'speed', label: 'Time to answer each question', options: [['relaxed', 'Relaxed (14s)'], ['normal', 'Normal (10s)'], ['quick', 'Quick (7s)']] },
     { key: 'ops', label: 'Problems', options: [['both', '+ and −'], ['add', '+ only'], ['sub', '− only']] },
     { key: 'max', label: 'Numbers up to', options: [[10, '10'], [20, '20']] },
+    { key: 'voice', label: 'Answer by speaking (microphone)', options: [[false, 'Off'], [true, 'On']] },
     { key: 'pad', label: 'On-screen number buttons', options: [[true, 'Show'], [false, 'Hide']] },
     { key: 'sfx', label: 'Sound effects', options: [[true, 'On'], [false, 'Off']] },
     { key: 'music', label: 'Music', options: [[true, 'On'], [false, 'Off']] },
   ];
 
+  function voiceNote() {
+    if (!Voice.supported) return '<p class="voice-note">This browser can\'t recognize speech. Try Chrome or Safari.</p>';
+    const where = Voice.isOnDevice()
+      ? 'Speech is recognized right here on this computer.'
+      : 'Chrome may send the audio to Google to turn it into text; Safari uses Apple\'s speech service.';
+    return `<p class="voice-note">Uses the browser's speech recognition. ${where} The game itself never records or keeps any audio.</p>
+      ${data.settings.voice ? `<div id="voice-test" class="voice-test">${MIC_PROBLEMS[micState] || (micState === 'listening' ? '🎤 Listening… say a number to test it.' : '🎤 Starting the microphone…')}</div>` : ''}`;
+  }
+
   function renderGrownups() {
-    $('settings').innerHTML = SETTINGS_UI.map(s => `
+    const setting = s => `
       <div class="setting"><div class="name">${s.label}</div><div class="seg">
-        ${s.options.map(([v, l]) => `<button data-key="${s.key}" data-val='${JSON.stringify(v)}' class="${data.settings[s.key] === v ? 'on' : ''}">${l}</button>`).join('')}
-      </div></div>`).join('');
+        ${s.options.map(([v, l]) => `<button data-key="${s.key}" data-val='${JSON.stringify(v)}' class="${data.settings[s.key] === v ? 'on' : ''}"${s.key === 'voice' && !Voice.supported ? ' disabled' : ''}>${l}</button>`).join('')}
+      </div>${s.key === 'voice' ? voiceNote() : ''}</div>`;
+    const byKey = key => SETTINGS_UI.find(s => s.key === key);
+    $('settings').innerHTML = ['speed', 'ops', 'max', 'pad'].map(k => setting(byKey(k))).join('')
+      + `<div class="setting-pair">${setting(byKey('sfx'))}${setting(byKey('music'))}</div>`;
+    $('voice-settings').innerHTML = setting(byKey('voice'));
 
     const st = SRS.stats(data.srs, data.settings);
     $('progress').innerHTML = `
@@ -560,15 +644,19 @@
       : '<span class="muted">None yet — great!</span>';
   }
 
-  $('settings').addEventListener('click', e => {
+  ui.grownups.addEventListener('click', e => {
     const btn = e.target.closest('button[data-key]');
     if (!btn) return;
-    data.settings[btn.dataset.key] = JSON.parse(btn.dataset.val);
+    const key = btn.dataset.key, val = JSON.parse(btn.dataset.val);
+    data.settings[key] = val;
     Sound.setMusic(data.settings.music);
     Sound.setSfx(data.settings.sfx);
+    // Turning voice on is a click, so the browser lets us fetch the on-device speech model now.
+    if (key === 'voice' && val) Voice.preferOnDevice().then(on => { if (on && grownupsOpen) renderGrownups(); });
     persist();
     renderGrownups();
-    refreshToggles();
+    refreshTitle();
+    syncVoice();
   });
 
   const resetBtn = $('btn-reset');
@@ -580,6 +668,7 @@
     }
     const fresh = Store.defaults();
     Object.assign(data, fresh, { settings: data.settings });
+    owned = new Set(data.owned);
     persist();
     resetGrownupsButton();
     renderGrownups();
@@ -590,7 +679,103 @@
   function openGrownups(open) {
     if (open) renderGrownups(); else resetGrownupsButton();
     show(ui.grownups, open);
+    grownupsOpen = open;
+    syncVoice();
   }
+
+  // ---------------------------------------------------------------- Berry Shop
+
+  let shopTab = 'plants', confirmId = null, confirmTimer = null, toastTimer = null;
+  const shopOpen = () => !ui.shop.classList.contains('hidden');
+
+  function openShop(open) {
+    confirmId = null;
+    show(ui.shop, open);
+    show(ui.title, !open);
+    if (open) renderShop();
+    else refreshTitle();
+  }
+
+  function renderShop(justBought) {
+    $('shop-berries').textContent = data.totalBerries;
+    $('shop-tabs').innerHTML = Decor.CATS.map(cat => {
+      const items = Decor.ITEMS.filter(i => i.cat === cat.id);
+      const have = items.filter(i => owned.has(i.id)).length;
+      return `<button data-tab="${cat.id}" class="${cat.id === shopTab ? 'on' : ''}">${cat.label} <small>${have}/${items.length}</small></button>`;
+    }).join('');
+
+    const items = Decor.ITEMS.filter(i => i.cat === shopTab).sort((a, b) => a.price - b.price);
+    const grid = $('shop-grid');
+    grid.innerHTML = items.map(i => {
+      const button = owned.has(i.id)
+        ? '<div class="owned-tag">✓ In your forest</div>'
+        : confirmId === i.id
+          ? `<button class="buy confirm" data-buy="${i.id}">Tap again to buy!</button>`
+          : `<button class="buy${data.totalBerries < i.price ? ' cant' : ''}" data-buy="${i.id}">🫐 ${i.price}</button>`;
+      return `<div class="card${owned.has(i.id) ? ' owned' : ''}${i.id === justBought ? ' bought' : ''}" data-id="${i.id}">
+        <canvas></canvas><div class="name">${i.name}</div>${button}</div>`;
+    }).join('');
+
+    for (const card of grid.querySelectorAll('.card')) {
+      const cv = card.querySelector('canvas'), k = 2;
+      cv.width = 196 * k;
+      cv.height = 128 * k;
+      const c = cv.getContext('2d');
+      c.scale(k, k);
+      Decor.preview(c, Decor.byId[card.dataset.id], 196, 128);
+    }
+  }
+
+  function toast(text) {
+    const el = $('shop-toast');
+    el.textContent = text;
+    show(el, false);
+    void el.offsetWidth;
+    show(el);
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => show(el, false), 2600);
+  }
+
+  function buy(id, btn) {
+    const item = Decor.byId[id];
+    if (owned.has(id)) return;
+    if (data.totalBerries < item.price) {
+      Sound.sfx.nope();
+      btn.classList.remove('shake');
+      void btn.offsetWidth;
+      btn.classList.add('shake');
+      toast(`You need ${item.price - data.totalBerries} more berries for that one!`);
+      return;
+    }
+    // Two taps to buy, so berries aren't spent by accident.
+    clearTimeout(confirmTimer);
+    if (confirmId !== id) {
+      confirmId = id;
+      confirmTimer = setTimeout(() => { confirmId = null; renderShop(); }, 3000);
+      renderShop();
+      return;
+    }
+    confirmId = null;
+    data.totalBerries -= item.price;
+    data.owned.push(id);
+    owned = new Set(data.owned);
+    persist();
+    Sound.sfx.buy();
+    toast(item.path ? `${item.name} will show up on Machiki's path!` : `${item.name} will appear in Machiki's forest!`);
+    renderShop(id);
+  }
+
+  $('shop-tabs').addEventListener('click', e => {
+    const tab = e.target.closest('button')?.dataset.tab;
+    if (!tab) return;
+    shopTab = tab;
+    confirmId = null;
+    renderShop();
+  });
+  $('shop-grid').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-buy]');
+    if (btn) buy(btn.dataset.buy, btn);
+  });
 
   // ---------------------------------------------------------------- input
 
@@ -598,7 +783,7 @@
   document.addEventListener('click', e => {
     Sound.init();
     const btn = e.target.closest('button');
-    if (btn && !btn.closest('#numpad')) Sound.sfx.click();
+    if (btn && !btn.closest('#numpad') && !btn.dataset.buy) Sound.sfx.click();
     if (btn) btn.blur(); // so Enter types answers instead of re-pressing the button
   });
   addEventListener('pointerdown', () => Sound.init(), { once: true });
@@ -613,6 +798,10 @@
   $('btn-music-pause').addEventListener('click', toggleMusic);
   $('btn-sfx-pause').addEventListener('click', toggleSfx);
   $('btn-grownups').addEventListener('click', () => openGrownups(true));
+  $('btn-shop').addEventListener('click', () => openShop(true));
+  // From the level-complete screen: go home first, so closing the shop lands on the title screen.
+  $('btn-end-shop').addEventListener('click', () => { goHome(); openShop(true); });
+  $('btn-shop-close').addEventListener('click', () => openShop(false));
   $('btn-close-grownups').addEventListener('click', () => openGrownups(false));
 
   ui.numpad.addEventListener('click', e => {
@@ -628,6 +817,10 @@
     const key = e.key;
     if (!ui.grownups.classList.contains('hidden')) {
       if (key === 'Escape') openGrownups(false);
+      return;
+    }
+    if (shopOpen()) {
+      if (key === 'Escape') openShop(false);
       return;
     }
     if (key === 'p' || key === 'P' || key === 'Escape') {
@@ -656,6 +849,7 @@
   });
 
   refreshTitle();
+  if (voiceOn()) Voice.preferOnDevice(); // uses the on-device model if it's already installed
   if (document.fonts) document.fonts.load('700 40px Fredoka');
   requestAnimationFrame(frame);
 })();
