@@ -11,8 +11,10 @@ Open `index.html` in a browser (double-clicking it works, no server or install n
 - Type the answer and press **Enter** (or use the on-screen number buttons), or say it out loud
   if speaking answers is turned on (see below).
 - **P** or **Esc** pauses. The game also pauses itself if you switch tabs.
-- A wrong answer makes Machiki stumble, but you can keep trying until he reaches the item.
-- If time runs out he trips, drops a few berries, and the right answer is shown.
+- A wrong answer makes Machiki stumble, and the game points out the likely slip, but you can keep
+  trying until he reaches the item.
+- If time runs out he trips and drops a few berries, and a tip shows how to work the fact out.
+  Press **Got it!** (or **Enter**) to carry on with a similar question (see below).
 - Each level has 10 questions. At the end, the berries in Machiki's knapsack fly into the total,
   which is saved between sessions.
 - Getting every question in a level right on the first try earns a **+20 perfect-streak bonus**:
@@ -76,7 +78,38 @@ From the title screen, **⚙️ Grown-ups** lets you change:
 - numbers up to 10 or 20
 - on-screen buttons, sound and music
 
-It also shows how many facts have been practised and mastered, and which ones are tricky.
+It also shows how many facts have been practised and mastered, which ones are tricky, and what
+kinds of mistakes come up most (see below).
+
+## Help with mistakes
+
+A wrong answer gets a message about what probably went wrong, without giving the answer away:
+
+- **Mixed up + and −** (13 for 8 − 5): "Look at the sign: it's minus, so take away!"
+- **Swapped digits** (31 for 13): "Almost! Check which digit comes first."
+- **Off by ten** (3 for 8 + 5): "Close! Check the tens."
+- **Off by one**: "So close! Count again carefully."
+- Anything else says whether the answer was too big or too small.
+
+When time runs out, the game stops for a 💡 tip. It works the fact out in big numbers, one step
+at a time, with a berry picture: blueberries for the first number and strawberries for the
+second, in ten-frames (two rows of five). Berries join the frame, or get crossed out, as each step
+appears, and the answer is filled in at the end:
+
+| Kind of fact | Tip |
+| --- | --- |
+| Crossing ten | Make 10 first: 8 + 5 → **8 + 2 = 10, 10 + 3 = 13**; get to 10 first: 13 − 5 → **13 − 3 = 10, 10 − 2 = 8** |
+| Doubles and near doubles | Two rows of berries: 7 + 7 → **5 + 5, 2 + 2**; 6 + 7 → **6 + 6 = 12, 12 + 1 = 13** |
+| Teens | Work with the ones, keep the ten: 12 + 5 → **2 + 5 = 7, 10 + 7 = 17**; 17 − 4 → **7 − 4 = 3** |
+| Subtraction within 10 | Think addition: 9 − 4 → **4 + ? = 9** |
+| Small steps | Count on or back (7 → 8 → 9), or count up when the numbers are close (15 − 13) |
+
+The question after a tip uses the same strategy with slightly different numbers (after 8 + 5,
+maybe 8 + 6 or 9 + 4), so the tip gets tried straight away. It takes the place of a later question,
+so the level stays 10 long. The missed fact itself still comes back a few questions later.
+
+The Grown-ups panel counts each kind of mistake. The logic is in [js/hints.js](js/hints.js), and
+the tip's picture and animation are in [js/tip.js](js/tip.js).
 
 ## Speaking answers
 

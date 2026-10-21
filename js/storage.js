@@ -9,6 +9,7 @@ const Store = (() => {
     bestStreak: 0,
     settings: { speed: 'relaxed', ops: 'both', max: 20, pad: true, music: true, sfx: true, voice: false },
     srs: { facts: {} },
+    slips: {}, // how often each kind of wrong answer happened (see Hints.slip)
     owned: [], // ids of Berry Shop items
   });
 

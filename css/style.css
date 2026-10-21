@@ -271,6 +271,28 @@ button { font-family: inherit; cursor: pointer; touch-action: manipulation; }
 
 .title-panel { margin-left: 260px; }
 
+/* Tip after a trip */
+.tip-panel { width: 720px; padding: 18px 30px 24px; }
+.tip-eq { font-size: 64px; font-weight: 700; line-height: 1.1; }
+.tip-answer {
+  display: inline-block;
+  min-width: 90px;
+  padding: 0 10px;
+  border: 5px dashed #c79a6c;
+  border-radius: 18px;
+  background: #fff;
+  color: #c79a6c;
+}
+.tip-answer.on { border-style: solid; border-color: var(--green); background: #e5fbe2; color: var(--green-d); animation: pop-in .4s ease-out; }
+.tip-title { margin: 8px 0 12px; font-size: 32px; font-weight: 600; color: var(--orange-d); }
+.tip-picture { display: block; margin: 0 auto; }
+.tip-steps { min-height: 60px; margin: 12px 0 16px; }
+.tip-step { font-size: 48px; font-weight: 700; line-height: 1.25; color: var(--blue-d); opacity: 0; }
+.tip-step.on { opacity: 1; animation: pop-in .35s ease-out; }
+#btn-tip-ok { visibility: hidden; }
+#btn-tip-ok.on { visibility: visible; animation: pop-in .3s ease-out; }
+@keyframes pop-in { from { opacity: 0; transform: scale(.8); } }
+
 h1, h2, h3, h4 { margin: 0; }
 h2 { font-size: 52px; color: var(--orange-d); }
 h3 { font-size: 26px; margin-bottom: 10px; }

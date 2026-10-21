@@ -86,6 +86,17 @@
     </div>
   </div>
 
+  <!-- Tip after a trip: the fact worked out with berries -->
+  <div id="tip" class="screen dim hidden">
+    <div class="panel tip-panel">
+      <div id="tip-eq" class="tip-eq"></div>
+      <div id="tip-title" class="tip-title"></div>
+      <canvas id="tip-picture" class="tip-picture"></canvas>
+      <div id="tip-steps" class="tip-steps"></div>
+      <button id="btn-tip-ok" class="btn btn-green btn-big">Got it! ▶</button>
+    </div>
+  </div>
+
   <!-- Pause -->
   <div id="pause" class="screen dim hidden">
     <div class="panel">
@@ -137,6 +148,8 @@
           <div id="progress"></div>
           <h4>Tricky facts (practised more often)</h4>
           <div id="tricky" class="chips"></div>
+          <h4>Kinds of mistakes</h4>
+          <div id="slips" class="chips"></div>
           <div id="voice-settings"></div>
         </div>
       </div>
@@ -150,10 +163,12 @@
 
 <script src="js/storage.js"></script>
 <script src="js/srs.js"></script>
+<script src="js/hints.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/voice.js"></script>
 <script src="js/art.js"></script>
 <script src="js/decor.js"></script>
+<script src="js/tip.js"></script>
 <script src="js/game.js"></script>
 </body>
 </html>

@@ -7,6 +7,7 @@
   const BOOST = 640;           // run speed after a correct answer
   const JUMP_TIME = 0.8, JUMP_HEIGHT = 175;
   const TRIP_TIME = 2.4, TRIP_LOSS = 3;
+  const TIP_DELAY = 1.1;        // seconds after tripping before the tip opens
   const STREAK_BONUS = 20;     // berries for getting every question in a level right first time
   const BANK_DELAY = 2200;     // ms on the level-complete screen before berries move to the total
   const PRAISE = ['Great job!', 'Awesome!', 'You got it!', 'Super!', 'Berry good!', 'Yum yum!', 'Brilliant!', 'Way to go!'];
@@ -22,7 +23,7 @@
   const stage = $('stage'), canvas = $('game'), ctx = canvas.getContext('2d');
   const ui = {
     hud: $('hud'), problem: $('problem'), numpad: $('numpad'), countdown: $('countdown'),
-    title: $('title'), pause: $('pause'), end: $('end'), grownups: $('grownups'), shop: $('shop'),
+    title: $('title'), pause: $('pause'), end: $('end'), tip: $('tip'), tipOk: $('btn-tip-ok'), grownups: $('grownups'), shop: $('shop'),
     answer: $('answer'), feedback: $('feedback'), meter: $('meter-fill'), mic: $('mic'),
   };
 
@@ -39,6 +40,7 @@
     queue: [], qIndex: 0, q: null, item: null, phase: 'idle', gapT: 0, input: '',
     levelBerries: 0, shownBerries: 0, streak: 0, bestStreak: 0, firstTry: 0, correct: 0,
     reasked: new Set(), lastKinds: [], countT: 0, countStep: -1, endReady: false, endRun: 0,
+    tipPending: false, tipOpen: false,
   };
   const newBear = () => ({ phase: 0, jumpT: -1, stumbleT: 0, tripT: 0, happyT: 0 });
   g.bear = newBear();
@@ -104,6 +106,7 @@
       queue: SRS.buildLevel(data.srs, data.settings, LEVEL_SIZE), qIndex: 0, q: null, item: null,
       phase: 'idle', input: '', levelBerries: 0, shownBerries: 0, streak: 0, bestStreak: 0,
       firstTry: 0, correct: 0, reasked: new Set(), lastKinds: [], items: [], particles: [], floaters: [],
+      tipPending: false,
     });
     g.bear = newBear();
     g.baseSpeed = 1040 / SECONDS[data.settings.speed];
@@ -182,6 +185,7 @@
     void ui.problem.offsetWidth;
     ui.problem.classList.add('pop');
     setFeedback(hintFor(g.item), 'hint');
+    ui.answer.classList.remove('shake');
     renderAnswer();
     show(ui.problem);
   }
@@ -212,7 +216,8 @@
       if (it.picked && dx < -it.w / 2 - 40 && g.bear.jumpT < 0) { g.phase = 'gap'; g.gapT = 0.7; }
     } else if (g.phase === 'trip') {
       g.targetSpeed = 0;
-      if (g.bear.tripT <= 0) { g.phase = 'gap'; g.gapT = 1.4; }
+      if (g.tipPending && g.bear.tripT <= TRIP_TIME - TIP_DELAY) openTip();
+      if (g.bear.tripT <= 0) { g.phase = 'gap'; g.gapT = 0.8; }
     } else if (g.phase === 'gap') {
       g.targetSpeed = g.baseSpeed;
       g.gapT -= dt;
@@ -270,11 +275,13 @@
   }
 
   function onWrong() {
+    const slip = Hints.slip(g.q.fact, Number(g.input));
+    data.slips[slip.type] = (data.slips[slip.type] || 0) + 1;
     g.q.wrongs++;
     g.streak = 0;
     g.bear.stumbleT = 0.6;
     Sound.sfx.wrong();
-    setFeedback('Not quite — try again!', 'bad');
+    setFeedback(slip.text, 'bad');
     ui.answer.classList.remove('shake');
     void ui.answer.offsetWidth;
     ui.answer.classList.add('shake');
@@ -288,6 +295,11 @@
     const it = g.item, q = g.q;
     SRS.record(data.srs, q.fact.key, { missed: true, fast: false });
     scheduleReask(q.fact);
+    // Next comes a fact that's worked out the same way, to try the tip straight away.
+    const upcoming = new Set(g.queue.slice(g.qIndex).map(f => f.key));
+    const next = Hints.similar(q.fact, SRS.allFacts(data.settings), upcoming);
+    if (next) insertQuestion(next, g.qIndex);
+    g.tipPending = true;
     g.streak = 0;
     g.phase = 'trip';
     Object.assign(g.bear, { tripT: TRIP_TIME, jumpT: -1, stumbleT: 0 });
@@ -318,12 +330,50 @@
   // A missed fact comes back a couple of questions later in the same level.
   function scheduleReask(fact) {
     if (g.reasked.has(fact.key) || g.qIndex >= g.queue.length) return;
-    let drop = -1;
-    for (let i = g.queue.length - 1; i >= g.qIndex; i--) if (!g.queue[i].reask) { drop = i; break; }
-    if (drop < 0) return;
-    g.queue.splice(drop, 1);
-    g.queue.splice(Math.min(g.qIndex + 2, g.queue.length), 0, { ...fact, reask: true });
+    insertQuestion(fact, g.qIndex + 2);
     g.reasked.add(fact.key);
+  }
+
+  // Adds a question at position `at` in place of the last planned one, so the level keeps its
+  // length. Only when every question left was added like this (or none are left) does it grow.
+  function insertQuestion(fact, at) {
+    for (let i = g.queue.length - 1; i >= g.qIndex; i--) {
+      if (!g.queue[i].added) { g.queue.splice(i, 1); break; }
+    }
+    g.queue.splice(Math.min(at, g.queue.length), 0, { ...fact, added: true });
+    $('q-total').textContent = g.queue.length;
+  }
+
+  // ---------------------------------------------------------------- tip after a trip
+
+  let stopTip = () => {};
+
+  // Opens partway through the trip, once Machiki is down, and holds the game until OK.
+  function openTip() {
+    g.tipPending = false;
+    g.tipOpen = true;
+    ui.tipOk.classList.remove('on');
+    show(ui.problem, false); // it shows the answer, which the tip saves for the end
+    show(ui.tip);
+    Sound.duck(true);
+    syncVoice();
+    stopTip = Tip.play({
+      fact: g.q.fact, k: g.k,
+      els: { eq: $('tip-eq'), title: $('tip-title'), picture: $('tip-picture'), steps: $('tip-steps') },
+      onStep: i => Sound.sfx.pop(i * 2),
+      onDone: () => { Sound.sfx.sparkle(); ui.tipOk.classList.add('on'); },
+    });
+  }
+
+  function closeTip() {
+    if (!g.tipOpen || !ui.tipOk.classList.contains('on')) return;
+    g.tipOpen = false;
+    stopTip();
+    show(ui.tip, false);
+    Sound.sfx.click();
+    Sound.duck(g.paused);
+    g.bear.tripT = Math.min(g.bear.tripT, 0.35); // Machiki gets up and runs on
+    syncVoice();
   }
 
   function collect(it) {
@@ -375,7 +425,7 @@
     $('end-title').textContent = bonus ? 'Perfect!' : ['Nice try!', 'Well done!', 'Fantastic!'][stars - 1];
     $('end-sub').textContent = `Level ${data.level - 1} complete`;
     $('end-stars').innerHTML = [0, 1, 2].map(i => `<span class="${i < stars ? 'on' : 'off'}" style="animation-delay:${0.3 + i * 0.25}s">★</span>`).join('');
-    $('end-correct').textContent = `${g.correct}/${LEVEL_SIZE}`;
+    $('end-correct').textContent = `${g.correct}/${g.queue.length}`;
     $('end-berries').textContent = earned;
     $('end-streak').textContent = g.bestStreak;
     $('end-streak-pill').classList.toggle('hot', g.bestStreak >= 3);
@@ -463,7 +513,8 @@
     Object.assign(g, { mode: 'title', paused: false, item: null, phase: 'idle', items: [], levelBerries: 0 });
     g.bear = newBear();
     Sound.duck(false);
-    for (const el of [ui.hud, ui.problem, ui.numpad, ui.countdown, ui.pause, ui.end]) show(el, false);
+    if (g.tipOpen) { g.tipOpen = false; stopTip(); }
+    for (const el of [ui.hud, ui.problem, ui.numpad, ui.countdown, ui.pause, ui.end, ui.tip]) show(el, false);
     refreshTitle();
     show(ui.title);
     syncVoice();
@@ -473,7 +524,7 @@
     if (g.mode !== 'play' && g.mode !== 'countdown') return;
     g.paused = p;
     show(ui.pause, p);
-    Sound.duck(p);
+    Sound.duck(p || g.tipOpen);
     Sound.sfx.pause();
     refreshToggles();
     syncVoice();
@@ -493,7 +544,7 @@
   // Listen while a level is running (or while the Grown-ups panel is testing the microphone).
   function syncVoice() {
     show(ui.mic, voiceOn());
-    const playing = (g.mode === 'play' || g.mode === 'countdown') && !g.paused;
+    const playing = (g.mode === 'play' || g.mode === 'countdown') && !g.paused && !g.tipOpen;
     if (voiceOn() && grownupsOpen) Voice.listen(testHandlers);
     else if (voiceOn() && playing) Voice.listen(gameHandlers);
     else Voice.stop();
@@ -633,7 +684,7 @@
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
-    if (!g.paused) update(dt);
+    if (!g.paused && !g.tipOpen) update(dt);
     draw();
     requestAnimationFrame(frame);
   }
@@ -798,6 +849,10 @@
     $('tricky').innerHTML = st.tricky.length
       ? st.tricky.map(f => `<span class="chip">${factText(f)} = ${f.answer} <small>×${f.wrong}</small></span>`).join('')
       : '<span class="muted">None yet — great!</span>';
+    const slips = Object.keys(Hints.SLIP_NAMES).filter(k => data.slips[k]);
+    $('slips').innerHTML = slips.length
+      ? slips.map(k => `<span class="chip">${Hints.SLIP_NAMES[k]} <small>×${data.slips[k]}</small></span>`).join('')
+      : '<span class="muted">None yet</span>';
   }
 
   ui.grownups.addEventListener('click', e => {
@@ -984,6 +1039,7 @@
   $('btn-end-shop').addEventListener('click', () => { goHome(); openShop(true); });
   $('btn-shop-close').addEventListener('click', () => openShop(false));
   $('btn-close-grownups').addEventListener('click', () => openGrownups(false));
+  ui.tipOk.addEventListener('click', closeTip);
 
   ui.numpad.addEventListener('click', e => {
     const k = e.target.closest('button')?.dataset.k;
@@ -1010,6 +1066,10 @@
     }
     if (g.paused) {
       if (key === 'Enter' || key === ' ') { setPaused(false); e.preventDefault(); }
+      return;
+    }
+    if (g.tipOpen) {
+      if (key === 'Enter' || key === ' ') { closeTip(); e.preventDefault(); }
       return;
     }
     if (g.mode === 'play') {
