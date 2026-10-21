@@ -7,6 +7,8 @@
   const BOOST = 640;           // run speed after a correct answer
   const JUMP_TIME = 0.8, JUMP_HEIGHT = 175;
   const TRIP_TIME = 2.4, TRIP_LOSS = 3;
+  const STREAK_BONUS = 20;     // berries for getting every question in a level right first time
+  const BANK_DELAY = 2200;     // ms on the level-complete screen before berries move to the total
   const PACK_TARGET = { x: 62, y: 50 };
   const PRAISE = ['Great job!', 'Awesome!', 'You got it!', 'Super!', 'Berry good!', 'Yum yum!', 'Brilliant!', 'Way to go!'];
   const CONFETTI = ['#ff5c8a', '#ffd84a', '#4cc35a', '#3fa9f5', '#b388ff', '#ff9f2e'];
@@ -37,7 +39,7 @@
     bear: null, items: [], particles: [], floaters: [],
     queue: [], qIndex: 0, q: null, item: null, phase: 'idle', gapT: 0, input: '',
     levelBerries: 0, shownBerries: 0, streak: 0, bestStreak: 0, firstTry: 0, correct: 0,
-    reasked: new Set(), lastKinds: [], countT: 0, countStep: -1, endReady: false,
+    reasked: new Set(), lastKinds: [], countT: 0, countStep: -1, endReady: false, endRun: 0,
   };
   const newBear = () => ({ phase: 0, jumpT: -1, stumbleT: 0, tripT: 0, happyT: 0 });
   g.bear = newBear();
@@ -97,6 +99,7 @@
   function startLevel() {
     Sound.init();
     goFullscreen();
+    stopBanking();
     Object.assign(g, {
       mode: 'countdown', paused: false, countT: 0, countStep: -1,
       queue: SRS.buildLevel(data.srs, data.settings, LEVEL_SIZE), qIndex: 0, q: null, item: null,
@@ -358,23 +361,35 @@
     g.endReady = false;
     show(ui.problem, false); show(ui.numpad, false); show(ui.hud, false);
 
+    // Every question right on the first try earns a bonus. Berries are saved right away; the
+    // screen then shows them moving into the total.
+    const earned = g.levelBerries, bonus = g.bestStreak >= LEVEL_SIZE ? STREAK_BONUS : 0;
     const before = data.totalBerries;
-    data.totalBerries += g.levelBerries;
+    data.totalBerries += earned + bonus;
     data.levelsPlayed++;
     data.level++;
     data.bestStreak = Math.max(data.bestStreak, g.bestStreak);
     persist();
 
     const stars = g.firstTry >= 9 ? 3 : g.firstTry >= 6 ? 2 : 1;
-    $('end-title').textContent = ['Nice try!', 'Well done!', 'Fantastic!'][stars - 1];
+    $('end-title').textContent = bonus ? 'Perfect!' : ['Nice try!', 'Well done!', 'Fantastic!'][stars - 1];
     $('end-sub').textContent = `Level ${data.level - 1} complete`;
     $('end-stars').innerHTML = [0, 1, 2].map(i => `<span class="${i < stars ? 'on' : 'off'}" style="animation-delay:${0.3 + i * 0.25}s">★</span>`).join('');
-    $('end-correct').textContent = `${g.correct} / ${LEVEL_SIZE}`;
-    $('end-berries').textContent = g.levelBerries;
+    $('end-correct').textContent = `${g.correct}/${LEVEL_SIZE}`;
+    $('end-berries').textContent = earned;
     $('end-streak').textContent = g.bestStreak;
+    $('end-streak-pill').classList.toggle('hot', g.bestStreak >= 3);
     $('end-total').textContent = before;
-    countUp($('end-total'), before, data.totalBerries);
+    // A perfect level reveals its bonus once the knapsack is emptied; otherwise, a hint.
+    const bonusLine = $('end-bonus');
+    bonusLine.className = bonus ? 'end-bonus waiting' : 'end-bonus';
+    bonusLine.innerHTML = bonus
+      ? `Perfect streak! <b id="end-bonus-amt">+${bonus}</b> bonus berries`
+      : `Get every answer right for <b>+${STREAK_BONUS}</b> bonus berries!`;
+    for (const id of ['end-streak-pill', 'end-total-pill']) $(id).classList.remove('glow');
     show(ui.end);
+    const run = g.endRun;
+    setTimeout(() => run === g.endRun && bankBerries(run, before, earned, bonus), BANK_DELAY);
 
     Sound.sfx.fanfare();
     for (let i = 0; i < 120; i++) {
@@ -388,17 +403,59 @@
     syncVoice();
   }
 
-  function countUp(el, from, to) {
-    const start = performance.now(), ms = 1400;
-    const step = now => {
-      const p = Math.min(1, (now - start) / ms);
-      el.textContent = Math.round(from + (to - from) * (1 - Math.pow(1 - p, 3)));
-      if (p < 1) requestAnimationFrame(step);
+  // The level-complete screen's berries flow into the total: first everything in the knapsack, then
+  // (after a perfect level) the bonus berries from the streak badge.
+  function bankBerries(run, total, earned, bonus) {
+    const alive = () => run === g.endRun; // stop if the player has already moved on
+    const layer = ui.end.querySelector('.end-panel'), totalPill = $('end-total-pill');
+    const flow = ({ from, amount, showLeft, berry, sound }, then) => {
+      if (!amount) return then();
+      const count = Math.min(20, amount);
+      const share = i => Math.round(amount * (i + 1) / count) - Math.round(amount * i / count);
+      let sent = 0;
+      flyBerries({
+        layer, from: from.querySelector('.ico'), to: totalPill.querySelector('.ico'), count, make: berry,
+        onLaunch: i => { if (alive()) showLeft(amount - (sent += share(i))); },
+        onLand: i => {
+          if (!alive()) return;
+          total += share(i);
+          $('end-total').textContent = total;
+          bump(totalPill);
+          sound(i);
+        },
+        done: () => { if (alive()) then(); },
+      });
     };
-    setTimeout(() => requestAnimationFrame(step), 900);
+    const finish = () => totalPill.classList.add('glow');
+
+    flow({
+      from: $('end-pack-pill'), amount: earned, showLeft: n => { $('end-berries').textContent = n; },
+      berry: () => drawnBerry(pickBerry().id), sound: i => Sound.sfx.pop(i),
+    }, () => {
+      if (!bonus) return finish();
+      $('end-bonus').className = 'end-bonus won';
+      $('end-streak-pill').classList.add('glow');
+      Sound.sfx.bonus();
+      const amt = $('end-bonus-amt');
+      setTimeout(() => alive() && flow({
+        from: $('end-streak-pill'), amount: bonus, showLeft: n => { amt.textContent = `+${n}`; },
+        berry: () => drawnBerry('golden'), sound: i => Sound.sfx.sparkle(i),
+      }, () => {
+        amt.textContent = `+${bonus}`;
+        Sound.sfx.tada();
+        finish();
+      }), 1100);
+    });
+  }
+
+  // Leaving the level-complete screen cancels any berries still on their way.
+  function stopBanking() {
+    g.endRun++;
+    for (const el of ui.end.querySelectorAll('.flying-berry')) el.remove();
   }
 
   function goHome() {
+    stopBanking();
     if (g.mode === 'play' || g.mode === 'countdown') {
       data.totalBerries += g.levelBerries; // keep what's in the knapsack
       persist();
@@ -585,6 +642,55 @@
 
   function floater(text, x, y, color, size = 40, life = 1.1) {
     g.floaters.push({ text, x, y, color, size, life });
+  }
+
+  // Flies `count` berries in arcs from one element to another, inside `layer` (a positioned panel on
+  // the scaled stage). onLaunch(i) runs as each berry leaves and onLand(i) as it lands.
+  function flyBerries({ layer, from, to, count, make, onLaunch, onLand, done }) {
+    const box = layer.getBoundingClientRect();
+    const scale = box.width / layer.offsetWidth; // the whole stage is scaled to fit the window
+    const centre = el => {
+      const r = el.getBoundingClientRect();
+      return {
+        x: (r.left + r.width / 2 - box.left) / scale - layer.clientLeft,
+        y: (r.top + r.height / 2 - box.top) / scale - layer.clientTop,
+      };
+    };
+    const a = centre(from), b = centre(to);
+    let landed = 0;
+    for (let i = 0; i < count; i++) {
+      const berry = make(i);
+      berry.classList.add('flying-berry');
+      layer.appendChild(berry);
+      const via = { x: (a.x + b.x) / 2 + (Math.random() - 0.5) * 180, y: Math.min(a.y, b.y) - 60 - Math.random() * 90 };
+      const frames = [];
+      for (let k = 0; k <= 12; k++) {
+        const t = k / 12, u = 1 - t;
+        const x = u * u * a.x + 2 * u * t * via.x + t * t * b.x;
+        const y = u * u * a.y + 2 * u * t * via.y + t * t * b.y;
+        frames.push({ transform: `translate(${x}px, ${y}px) translate(-50%, -50%) scale(${1.25 - 0.55 * t}) rotate(${t * 300}deg)` });
+      }
+      const delay = i * 75;
+      if (onLaunch) setTimeout(() => onLaunch(i), delay);
+      berry.animate(frames, { duration: 700, delay, easing: 'cubic-bezier(.4, 0, .7, 1)', fill: 'backwards' }).onfinish = () => {
+        berry.remove();
+        if (onLand) onLand(i);
+        if (++landed === count && done) done();
+      };
+    }
+  }
+
+  const emojiBerry = () => Object.assign(document.createElement('div'), { textContent: '🫐' });
+
+  // A berry drawn like the ones in the game, for flying across the menus.
+  function drawnBerry(type) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 96;
+    c.style.width = c.style.height = '48px';
+    const x = c.getContext('2d');
+    x.scale(2, 2);
+    Art.berry(x, type, 24, 26, 14);
+    return c;
   }
 
   function bump(el) {
@@ -807,52 +913,27 @@
     btn.textContent = '✨';
     btn.disabled = true;
     shopBusy = true;
-    flyBerries(btn.closest('.card'), before, item.price, () => {
-      shopBusy = false;
-      toast(item.path ? `${item.name} will show up on Machiki's path!` : `${item.name} will appear in Machiki's forest!`);
-      renderShop(id);
-    });
-  }
-
-  // Berries fly in an arc from the berry total into the item's picture, so it's clear where they went.
-  let shopBusy = false;
-  function flyBerries(card, before, price, done) {
-    const panel = ui.shop.querySelector('.shop-panel'), box = panel.getBoundingClientRect();
-    const scale = box.width / panel.offsetWidth; // the whole stage is scaled to fit the window
-    const centre = el => {
-      const r = el.getBoundingClientRect();
-      return { x: (r.left + r.width / 2 - box.left) / scale, y: (r.top + r.height / 2 - box.top) / scale };
-    };
-    const from = centre($('shop-pill').querySelector('.ico')), to = centre(card.querySelector('canvas'));
-    const count = Math.min(14, 5 + Math.round(price / 100));
-    const counter = $('shop-berries');
+    // Berries fly from the berry total into the item's picture, so it's clear where they went: the
+    // total ticks down as each one leaves, and each one pops into the picture as it lands.
+    const card = btn.closest('.card'), counter = $('shop-berries');
+    const count = Math.min(14, 5 + Math.round(item.price / 100));
     bump($('shop-pill'));
-    let landed = 0;
-    for (let i = 0; i < count; i++) {
-      const berry = document.createElement('div');
-      berry.className = 'flying-berry';
-      berry.textContent = '🫐';
-      panel.appendChild(berry);
-      const via = { x: (from.x + to.x) / 2 + (Math.random() - 0.5) * 180, y: Math.min(from.y, to.y) - 60 - Math.random() * 90 };
-      const frames = [];
-      for (let k = 0; k <= 12; k++) {
-        const t = k / 12, u = 1 - t;
-        const x = u * u * from.x + 2 * u * t * via.x + t * t * to.x;
-        const y = u * u * from.y + 2 * u * t * via.y + t * t * to.y;
-        frames.push({ transform: `translate(${x}px, ${y}px) translate(-50%, -50%) scale(${1.25 - 0.55 * t}) rotate(${t * 300}deg)` });
-      }
-      const delay = i * 75;
-      // The total ticks down as each berry leaves...
-      setTimeout(() => { counter.textContent = Math.round(before - price * (i + 1) / count); }, delay);
-      // ...and each one pops into the picture when it lands.
-      berry.animate(frames, { duration: 700, delay, easing: 'cubic-bezier(.4, 0, .7, 1)', fill: 'backwards' }).onfinish = () => {
-        berry.remove();
+    flyBerries({
+      layer: ui.shop.querySelector('.shop-panel'), from: $('shop-pill').querySelector('.ico'), to: card.querySelector('canvas'),
+      count, make: emojiBerry,
+      onLaunch: i => { counter.textContent = Math.round(before - item.price * (i + 1) / count); },
+      onLand: i => {
         Sound.sfx.pop(i);
         card.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.06)' }, { transform: 'scale(1)' }], { duration: 160 });
-        if (++landed === count) done();
-      };
-    }
+      },
+      done: () => {
+        shopBusy = false;
+        toast(item.path ? `${item.name} will show up on Machiki's path!` : `${item.name} will appear in Machiki's forest!`);
+        renderShop(id);
+      },
+    });
   }
+  let shopBusy = false;
 
   $('shop-tabs').addEventListener('click', e => {
     const tab = e.target.closest('button')?.dataset.tab;

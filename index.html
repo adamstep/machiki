@@ -102,11 +102,14 @@
       <h2 id="end-title">Well done!</h2>
       <div id="end-sub" class="subtitle">Level 1 complete</div>
       <div id="end-stars" class="stars"></div>
-      <div class="stats">
-        <div class="stat"><span class="ico">✅</span><span class="label">Questions answered</span><b id="end-correct">0 / 10</b></div>
-        <div class="stat"><span class="ico">🎒</span><span class="label">Berries earned</span><b id="end-berries">0</b></div>
-        <div class="stat"><span class="ico">🔥</span><span class="label">Longest streak</span><b id="end-streak">0</b></div>
-        <div class="stat total"><span class="ico">🫐</span><span class="label">Total berries</span><b id="end-total">0</b></div>
+      <div class="end-stats">
+        <div class="pill big" title="Questions answered"><span class="ico">✅</span><span id="end-correct">0/10</span></div>
+        <div class="pill big" id="end-pack-pill" title="Berries in the knapsack"><span class="ico">🎒</span><span id="end-berries">0</span></div>
+        <div class="pill big streak" id="end-streak-pill" title="Longest streak"><span class="ico">🔥</span><span id="end-streak">0</span></div>
+      </div>
+      <div id="end-bonus" class="end-bonus"></div>
+      <div class="end-total">
+        <div class="pill huge" id="end-total-pill" title="All your berries"><span class="ico">🫐</span><span id="end-total">0</span></div>
       </div>
       <div class="row">
         <button id="btn-home" class="btn btn-plain">🏠 Home</button>

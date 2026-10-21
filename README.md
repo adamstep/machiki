@@ -13,7 +13,10 @@ Open `index.html` in a browser (double-clicking it works, no server or install n
 - **P** or **Esc** pauses. The game also pauses itself if you switch tabs.
 - A wrong answer makes Machiki stumble, but you can keep trying until he reaches the item.
 - If time runs out he trips, drops a few berries, and the right answer is shown.
-- Each level has 10 questions. Berries add up to a total that's saved between sessions.
+- Each level has 10 questions. At the end, the berries in Machiki's knapsack fly into the total,
+  which is saved between sessions.
+- Getting every question in a level right on the first try earns a **+20 perfect-streak bonus**:
+  golden berries fly from the streak badge into the total.
 
 ## Phones and tablets
 

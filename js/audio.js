@@ -115,6 +115,27 @@ const Sound = (() => {
       notes([[0.16, 96, 0.25], [0.21, 100, 0.25], [0.26, 103, 0.35]], { vol: 0.07 });
     },
     nope() { tone({ f: 300, to: 220, dur: 0.18, type: 'triangle', vol: 0.18 }); },
+    // Perfect-streak bonus: a magical harp-like sweep up, finishing on a shimmering bell chord.
+    bonus() {
+      [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24].forEach((step, k) => {
+        tone({ f: midi(67 + step), at: k * 0.045, dur: 0.4, vol: 0.09 });
+        tone({ f: midi(79 + step), at: k * 0.045 + 0.02, dur: 0.2, type: 'triangle', vol: 0.025 });
+      });
+      notes([[0.52, 84, 1.1], [0.52, 88, 1.1], [0.52, 91, 1.1]], { type: 'triangle', vol: 0.08 });
+      notes([[0.56, 103, 0.9], [0.66, 108, 0.8]], { vol: 0.035 });
+    },
+    // A brighter pop with a twinkle on top, for golden bonus berries landing.
+    sparkle(i = 0) {
+      const n = [84, 86, 88, 91, 93, 96, 98, 100][i % 8];
+      tone({ f: midi(n), to: midi(n + 7), dur: 0.1, vol: 0.15 });
+      tone({ f: midi(n + 24), at: 0.03, dur: 0.3, type: 'triangle', vol: 0.04 });
+    },
+    // "Ta-da!" once every bonus berry is in.
+    tada() {
+      notes([[0, 79, 0.12], [0.11, 84, 0.7]], { type: 'triangle', vol: 0.2 });
+      notes([[0.11, 76, 0.7], [0.11, 72, 0.7]], { type: 'triangle', vol: 0.09 });
+      notes([[0.2, 96, 0.3], [0.26, 100, 0.3], [0.32, 103, 0.5]], { vol: 0.05 });
+    },
     fanfare() {
       const melody = [[0, 67, 0.14], [0.15, 72, 0.14], [0.3, 76, 0.14], [0.45, 79, 0.3], [0.8, 76, 0.14], [0.95, 79, 0.7]];
       notes(melody, { type: 'triangle', vol: 0.2 });
