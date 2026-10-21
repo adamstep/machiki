@@ -9,7 +9,6 @@
   const TRIP_TIME = 2.4, TRIP_LOSS = 3;
   const STREAK_BONUS = 20;     // berries for getting every question in a level right first time
   const BANK_DELAY = 2200;     // ms on the level-complete screen before berries move to the total
-  const PACK_TARGET = { x: 62, y: 50 };
   const PRAISE = ['Great job!', 'Awesome!', 'You got it!', 'Super!', 'Berry good!', 'Yum yum!', 'Brilliant!', 'Way to go!'];
   const CONFETTI = ['#ff5c8a', '#ffd84a', '#4cc35a', '#3fa9f5', '#b388ff', '#ff9f2e'];
 
@@ -333,11 +332,12 @@
     Sound.sfx.collect(it.kind === 'bush');
     const sy = it.kind === 'bush' ? GROUND_Y - 60 : GROUND_Y - 205;
     const n = Math.min(it.reward, 12);
+    const pack = packTarget();
     for (let i = 0; i < n; i++) {
       const sx = it.x + (Math.random() - 0.5) * 80, y0 = sy + (Math.random() - 0.5) * 40;
       g.particles.push({
-        kind: 'fly', berryType: it.berryType, i, t: -i * 0.06, dur: 0.75,
-        sx, sy: y0, cx: (sx + PACK_TARGET.x) / 2 + 120, cy: Math.min(y0, PACK_TARGET.y) - 160, x: sx, y: y0,
+        kind: 'fly', berryType: it.berryType, i, t: -i * 0.06, dur: 0.75, tx: pack.x, ty: pack.y,
+        sx, sy: y0, cx: (sx + pack.x) / 2 + 120, cy: Math.min(y0, pack.y) - 160, x: sx, y: y0,
       });
     }
     if (it.kind === 'bush') {
@@ -573,8 +573,8 @@
       if (q.kind === 'fly') {
         q.t += dt;
         const p = clamp(q.t / q.dur, 0, 1), e = p * p * (3 - 2 * p), u = 1 - e;
-        q.x = u * u * q.sx + 2 * u * e * q.cx + e * e * PACK_TARGET.x;
-        q.y = u * u * q.sy + 2 * u * e * q.cy + e * e * PACK_TARGET.y;
+        q.x = u * u * q.sx + 2 * u * e * q.cx + e * e * q.tx;
+        q.y = u * u * q.sy + 2 * u * e * q.cy + e * e * q.ty;
         q.r = 11 * (1 - p * 0.4);
         if (p >= 1) {
           q.done = true;
@@ -691,6 +691,14 @@
     x.scale(2, 2);
     Art.berry(x, type, 24, 26, 14);
     return c;
+  }
+
+  // Where the knapsack icon in the HUD is, in scene coordinates. It moves with the screen layout and
+  // the notch/status-bar insets, so flying berries look it up rather than using a fixed spot.
+  function packTarget() {
+    const ico = $('pack-pill').querySelector('.ico').getBoundingClientRect();
+    const box = canvas.getBoundingClientRect(), scale = box.width / W;
+    return { x: (ico.left + ico.width / 2 - box.left) / scale, y: (ico.top + ico.height / 2 - box.top) / scale };
   }
 
   function bump(el) {
