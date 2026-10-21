@@ -1,0 +1,64 @@
+<!doctype html>
+<!-- Draws the app icon with the game's own artwork. Open with ?size=180 (any size) and screenshot
+     it at that size, e.g. with headless Chrome — see "App icon" in the README. -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; overflow: hidden; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="icon"></canvas>
+<script src="../js/art.js"></script>
+<script>
+  const size = Number(new URLSearchParams(location.search).get('size')) || 512;
+  const canvas = document.getElementById('icon');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(size / 1024, size / 1024); // draw on a 1024×1024 board
+  const { circle, ellipse, paint, star, LINE } = Art.util;
+
+  // Sky
+  const sky = ctx.createLinearGradient(0, 0, 0, 1024);
+  sky.addColorStop(0, '#5bbcff');
+  sky.addColorStop(0.65, '#c4ecff');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  // Sun peeking in at the top right
+  ctx.save();
+  ctx.translate(845, 185);
+  ctx.fillStyle = 'rgba(255, 214, 80, 0.55)';
+  for (let i = 0; i < 12; i++) {
+    ctx.rotate(Math.PI / 6);
+    ctx.beginPath(); ctx.moveTo(-18, -95); ctx.lineTo(0, -140); ctx.lineTo(18, -95); ctx.fill();
+  }
+  ctx.restore();
+  circle(ctx, 845, 185, 78); paint(ctx, '#ffd84a', '#f0a020', 7);
+
+  // Hills and meadow
+  ctx.fillStyle = '#9fdcae';
+  ctx.beginPath(); ctx.ellipse(250, 900, 620, 330, 0, Math.PI, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#86cf8f';
+  ctx.beginPath(); ctx.ellipse(900, 930, 560, 280, 0, Math.PI, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#79c94d';
+  ctx.fillRect(0, 860, 1024, 164);
+  ctx.fillStyle = '#69b843';
+  for (let x = 0; x <= 1024; x += 64) { ctx.beginPath(); ctx.arc(x, 864, 38, Math.PI, Math.PI * 2); ctx.fill(); }
+
+  // Machiki, jumping for joy with a knapsack full of berries
+  ctx.save();
+  ctx.translate(540, 900);
+  ctx.scale(3.5, 3.5);
+  Art.bear(ctx, 0, 0, { phase: 1.2, t: 0.1, rot: -0.05, lift: 14, legs: 'tuck', arms: 'up', face: 'happy', stars: false, pack: 10 });
+  ctx.restore();
+
+  // Berries flying into the knapsack
+  for (const [type, x, y, r] of [['strawberry', 250, 230, 44], ['blueberry', 400, 150, 36], ['raspberry', 150, 330, 34]]) {
+    circle(ctx, x, y, r * 1.55); paint(ctx, 'rgba(255, 250, 200, 0.55)');
+    Art.berry(ctx, type, x, y, r);
+  }
+  star(ctx, 500, 245, 22, '#fff7b0', LINE);
+  star(ctx, 150, 190, 16, '#fff7b0', LINE);
+</script>
+</body>
+</html>

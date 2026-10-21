@@ -30,6 +30,18 @@ The game adapts to the screen's shape:
 On Android phones and iPads, starting a level switches to full screen. On iPhone, use Safari's
 **Share → Add to Home Screen** to play full screen like an app.
 
+### App icon
+
+The Home Screen icon, Android app icons and browser-tab icon in [icons/](icons/) are drawn from
+the game's own artwork by [tools/icon.html](tools/icon.html). To regenerate one after changing the
+drawing, serve the folder and screenshot the page at the size you need, for example:
+
+```
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --hide-scrollbars \
+  --force-device-scale-factor=1 --window-size=180,180 --screenshot=icons/apple-touch-icon.png \
+  "http://localhost:8000/tools/icon.html?size=180"
+```
+
 ## Berry Shop
 
 From the home screen or the end of a level, **🏡 Berry Shop** lets the player spend berries on 60 hand-drawn items. The
