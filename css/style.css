@@ -103,7 +103,7 @@ button { font-family: inherit; cursor: pointer; touch-action: manipulation; }
 /* ---------- Problem box ---------- */
 #problem {
   position: absolute;
-  top: 16px;
+  top: calc(16px + var(--safe-top));
   left: 50%;
   transform: translateX(-50%);
   width: clamp(420px, calc(100% - 520px), 500px);
@@ -249,6 +249,9 @@ button { font-family: inherit; cursor: pointer; touch-action: manipulation; }
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Keep panels clear of the status bar, notch and home indicator (e.g. when added to the
+     iPhone Home Screen); dimmed backgrounds still cover the whole screen. */
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
 }
 .screen.dim { background: rgba(20, 45, 25, .45); }
 
@@ -496,7 +499,7 @@ body.small[data-layout="wide"] #numpad button { width: 86px; height: 86px; font-
 body.small[data-layout="wide"] #numpad .np-go { width: 140px; }
 body.small .shop-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); grid-auto-rows: 320px; }
 body.small .card .name { font-size: 26px; }
-body.small .card .buy { padding: 14px 0; font-size: 32px; }
+body.small .card .buy { padding: 17px 0; font-size: 32px; }
 body.small .shop-tabs button { padding: 12px 10px; font-size: 26px; }
 body.small .shop-tabs button small { font-size: 18px; }
 body.small .seg button { padding: 10px 18px; font-size: 22px; }
@@ -524,18 +527,19 @@ body.small .setting .name, body.small #progress { font-size: 22px; }
   transform: none;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: minmax(0, 1fr); /* rows shrink to fit, whatever the screen height */
   gap: 16px;
   max-width: 900px;
   margin: 0 auto;
 }
-[data-layout="portrait"] #numpad button { width: auto; height: auto; font-size: 68px; border-radius: 28px; box-shadow: 0 7px 0 rgba(74, 42, 23, .4); }
+[data-layout="portrait"] #numpad button { width: auto; height: auto; min-height: 0; padding: 0; line-height: 1; font-size: 68px; border-radius: 28px; box-shadow: 0 7px 0 rgba(74, 42, 23, .4); }
 [data-layout="portrait"] #numpad .np-go { width: auto; font-size: 52px; }
 [data-layout="portrait"] #numpad .np-back { order: 1; font-size: 56px; }
 [data-layout="portrait"] #numpad [data-k="0"] { order: 2; }
 [data-layout="portrait"] #numpad .np-go { order: 3; }
 
 /* Portrait: menus sit in the meadow below the scene, so Machiki and the forest stay in view. */
-[data-layout="portrait"] #title { padding: 720px 0 var(--safe-bottom); }
+[data-layout="portrait"] #title { padding-top: 680px; } /* centred in the meadow below the scene */
 [data-layout="portrait"] #end { align-items: flex-end; padding-bottom: calc(24px + var(--safe-bottom)); }
 [data-layout="portrait"] .title-panel { margin-left: 0; }
 [data-layout="portrait"] .cols { grid-template-columns: 1fr; }

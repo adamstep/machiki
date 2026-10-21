@@ -57,7 +57,7 @@
     let layout, s, width;
     if (aspect >= 1.33) { layout = 'wide'; s = vh / H; width = Math.min(vw / s, 2400); }
     else if (aspect >= 0.85) { layout = 'strip'; width = Math.max(960, 840 * aspect); s = vw / width; }
-    else { layout = 'portrait'; s = Math.min(vw / 700, vh / 1370); width = vw / s; }
+    else { layout = 'portrait'; s = Math.min(vw / 700, vh / 1450); width = vw / s; }
     W = Math.round(width);
     const height = layout === 'wide' ? H : Math.round(vh / s);
 
