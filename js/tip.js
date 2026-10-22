@@ -4,7 +4,8 @@ const Tip = (() => {
   const CELL = 54, PAD = 10, GAP = 28, MARGIN = 8; // picture layout, in stage pixels
   const START = 0.7, POP = 0.09;                   // seconds: before the first step, between berries
   const BERRY = { a: 'blueberry', b: 'strawberry' };
-  const easeBack = p => 1 + 2.7 * (p - 1) ** 3 + 1.7 * (p - 1) ** 2;
+  // Rounding can make this a hair below 0 at p = 0, and the canvas throws on a negative radius.
+  const easeBack = p => Math.max(0, 1 + 2.7 * (p - 1) ** 3 + 1.7 * (p - 1) ** 2);
 
   // Where each cell goes, and the boxes to draw behind them.
   function layout(ex) {
@@ -128,8 +129,13 @@ const Tip = (() => {
         ans.classList.add('on');
         onDone();
       }
-      drawPicture(ctx, ex, lay, starts, t);
       if (!done || t < end + 1) raf = requestAnimationFrame(tick);
+      // The game waits for OK, so a drawing problem must never stop the steps from playing out.
+      try {
+        drawPicture(ctx, ex, lay, starts, t);
+      } catch (e) {
+        console.error(e);
+      }
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
